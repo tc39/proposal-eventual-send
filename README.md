@@ -11,7 +11,7 @@ These promises descend from the [E language](http://erights.org/) via
 the [Waterken Q library](http://waterken.sourceforge.net/web_send/)
 and [Kris Kowal's Q library](https://github.com/kriskowal/q). A good
 early presentation is Tom Van Cutsem's [Communicating Event Loops: An
-exploration in Javascript](http://soft.vub.ac.be/~tvcutsem/talks/presentations/WGLD_CommEventLoops.pdf). Allof these are about promises as a first step towards distributed computing, by using promises as asynchronous references to remote objects.
+exploration in Javascript](http://soft.vub.ac.be/~tvcutsem/talks/presentations/WGLD_CommEventLoops.pdf). All of these are about promises as a first step towards distributed computing, by using promises as asynchronous references to remote objects.
 
 Kris Kowal's [Q-connection
 library](https://github.com/kriskowal/q-connection) extended Q's
