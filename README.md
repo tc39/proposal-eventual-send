@@ -152,7 +152,7 @@ This handler is not exposed to the user of the handled promise, so it provides a
 
 ### HandledPromise.prototype
 
-Although `HandledPrmise` is class-like, it is not intended to act like a class distinct from `Promise`. This, the initial value of `HandledPromise.prototype` is the same as the initial value of `Promise.prototype`. Code that holds a promise cannot sense whether it holds a handled or unhandled promise.
+Although `HandledPromise` is class-like, it is not intended to act like a class distinct from `Promise`. This, the initial value of `HandledPromise.prototype` is the same as the initial value of `Promise.prototype`. Code that holds a promise cannot sense whether it holds a handled or unhandled promise.
 
 
 ### Handler traps
