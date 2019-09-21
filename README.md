@@ -34,7 +34,7 @@ example and test of adequacy.
 
 ## Details
 
-To specify eventual-send operations and handled promises, we follow the pattern use to incorporate proxies into JavaScript: We specified...
+To specify eventual-send operations and handled promises, we follow the pattern used to incorporate proxies into JavaScript: We specified...
    * internal methods that all objects must support.
    * static `Reflect` methods for invoking these internal methods.
    * invariants that these methods must uphold.
