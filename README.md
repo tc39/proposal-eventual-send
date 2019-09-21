@@ -75,7 +75,7 @@ Via the internal methods, the static methods cause either the default behavior, 
 | `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
 | `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
 
-To protect against reentrancy, the proxy internal method postpones the execution of the handler trap to a later turn, and immediately returns a promise for what the trap will return. For example, the [[GetSend]] internal method of handled promises is effectively
+To protect against reentrancy, the proxy internal method postpones the execution of the handler trap to a later turn, and immediately returns a promise for what the trap will return. For example, the [[GetSend]] internal method of a handled promise is effectively
 
 ```js
 p.then(t => h.get(t, prop))
