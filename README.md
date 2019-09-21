@@ -1,4 +1,4 @@
-# ECMAScript Eventual Send: Support distributed promise pipelining
+# Eventual Send: Support distributed promise pipelining
 By Mark S. Miller (@erights), Chip Morningstar (@FUDCo), and Michael FIG (@michaelfig)
 
 **ECMAScript Eventual Send: Support distributed promise pipelining**
