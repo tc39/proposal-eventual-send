@@ -64,7 +64,7 @@ p.then(t => h.get(t, prop))
 Sometimes, these operations will be used to cause remote effects while ignoring the local promise for the result. For distributed messaging protocols, the extra bookkeeping for these return results are sufficiently expensive that we should be able to avoid it when unneeded. To support this, we introduce the "SendOnly" variants of these methods. We show only the SendOnly variant of the [[Get]] trap, as all the others follow exactly the same pattern.
 
 | Internal Method | Static Method | Default Behaviour | Handler trap |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
 
 No matter what the SendOnly handler trap returns, the proxy internal [[\*SendOnly]] method always immediately returns `undefined`.
