@@ -20,7 +20,7 @@ References](https://github.com/tc39/proposal-weakrefs), this approach
 was not practical. Given weak references, the [Midori
 project](http://joeduffyblog.com/2015/11/19/asynchronous-everything/)
 and [Cap'n Proto](https://capnproto.org/rpc.html), among others,
-demonstrates that this approach to distributed computing works well at
+demonstrate that this approach to distributed computing works well at
 scale.
 
 We add *eventual-send* operations to promises, to express invocations of potentially remote objects. We explain the notion of a *handled Promise*, whose handler can provide alternate eventual-send behaviors. These mechanisms, together with weak references, enable writing remote object communications systems, but they are not specific to any one. This proposal does not include any specific usage of the mechanisms we propose, except as a motivating
