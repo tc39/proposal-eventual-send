@@ -47,13 +47,21 @@ Following this analogy, we add the internal eventual-send methods to all promise
 
 We introduce a new constructor, `HandledPromise`, for making handled promises. The static methods below are static methods of this constructor.
 
-| Internal Method | Static Method | Default Behaviour | Handler trap |
-| --- | --- | --- | --- |
-| `p.[[GetSend]](prop)` | `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
-| `p.[[SetSend]](prop, value)` | `set(p, prop, value)` | `p.then(t => (t[prop] = value))` | `h.set(t, prop, value)` |
-| `p.[[DeleteSend]](prop)` | `delete(p, prop)` | `p.then(t => delete t[prop])` | `h.delete(t, prop)` |
-| `p.[[ApplySend]](args)` | `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
-| `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
+| Internal Method | Static Method |
+| --- | --- |
+| `p.[[GetSend]](prop)` | `get(p, prop)` |
+| `p.[[SetSend]](prop, value)` | `set(p, prop, value)` |
+| `p.[[DeleteSend]](prop)` | `delete(p, prop)` |
+| `p.[[ApplySend]](args)` | `apply(p, args)` |
+| `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
+
+| Static Method | Default Behavior | Handler trap |
+| --- | --- | --- |
+| `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
+| `set(p, prop, value)` | `p.then(t => (t[prop] = value))` | `h.set(t, prop, value)` |
+| `delete(p, prop)` | `p.then(t => delete t[prop])` | `h.delete(t, prop)` |
+| `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
+| `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
 
 To protect against reentrancy, the proxy internal method postpones the execution of the handler trap to a later turn, and immediately returns a promise for what the trap will return. For example, for the [[GetSend]] internal method of handled promises is effectively
 
@@ -63,11 +71,15 @@ p.then(t => h.get(t, prop))
 
 Sometimes, these operations will be used to cause remote effects while ignoring the local promise for the result. For distributed messaging protocols, the extra bookkeeping for these return results are sufficiently expensive that we should be able to avoid it when unneeded. To support this, we introduce the "SendOnly" variants of these methods. We show only the SendOnly variant of the [[Get]] trap, as all the others follow exactly the same pattern.
 
-| Internal Method | Static Method | Default Behaviour | Handler trap |
-| --- | --- | --- | --- |
-| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
+| Internal Method | Static Method |
+| --- | --- |
+| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` |
 
-No matter what the SendOnly handler trap returns, the proxy internal [[\*SendOnly]] method always immediately returns `undefined`.
+| Static Method | Default Behavior | Handler trap |
+| --- | --- | --- |
+| `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
+
+No matter what the \*SendOnly handler trap returns, the proxy internal [[\*SendOnly]] method always immediately returns `undefined`.
 
 When a "SendOnly" trap is absent, the trap behavior defaults to the corresponding non-SendOnly trap. But again, the proxy internal [[\*SendOnly]] method always immediately returns `undefined`, and so is effectively
 
@@ -85,7 +97,7 @@ The `E(target)` proxy maker wraps a remote target and allows for a single remote
 E(target).method(arg1, arg2...) // Promise<result>
 ```
 
-`E.sendOnly(target)` is similar, but declares that we do not want the result (or even acknowledgement).
+`E.sendOnly(target)` is similar, but declares that we do not want the result (or even acknowledgement). It always immediately returns `undefined`.
 
 Example usage:
 
@@ -147,7 +159,12 @@ A handler object can provide handler traps (`get`, `set`, `delete`, `apply`, `ap
 
 If the handler does not provide a `*SendOnly` trap, its default implementation is the non-send-only trap with a return value of `undefined` (not a promise).
 
-If the handler omits a non-send-only trap, invoking the associated operation returns a promise rejection.  The only exception to that behaviour is if the handler does not provide the `applyMethod` optimization trap.  Then, its default implementation is `HandledPromise.get(target, prop).then(fn => fn(...args))`, which typically requires a round trip before `fn` can be resolved.
+If the handler omits a non-send-only trap, invoking the associated operation returns a promise rejection.  The only exception to that behaviour is if the handler does not provide the `applyMethod` optimization trap.  Then, its default implementation is
+```js
+HandledPromise.apply(HandledPromise.get(p, prop), args)
+```
+
+This expansion requires that the promise for the remote method be unnecessarily reified.
 
 For an unfulfilled handler, the trap's `target` argument is the unfulfilled handled promise, so that it can gain control before the promise is resolved.  For a fulfilled handler, the method's `target` argument is the result of the fulfillment, since it is available.
 
@@ -197,4 +214,6 @@ const q = new HandledPromise(r => qr = r, unresolvedHandler);
 pr.resolve(qr);
 ```
 
-After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded to `q` and trap to `q`'s `unresolvedHandler`. Although a shim could monkey patch the `Promise` constructor to provide an altered `resolve` function which does that, there are plenty of internal resolution steps that would bypass it. There is no way for a shim to detect that unresolved unhandled promise `p` has been resolved to unresolved unhandled `q` by one of these.
+After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded to `q` and trap to `q`'s `unresolvedHandler`. Although a shim could monkey patch the `Promise` constructor to provide an altered `resolve` function which does that, there are plenty of internal resolution steps that would bypass it. There is no way for a shim to detect that unresolved unhandled promise `p` has been resolved to unresolved handled `q` by one of these. Instead, the `foo` invocation will languish until a round trip fulfills `q`, thus
+   * losing the benefits of promises pipelining,
+   * arriving after messages that should have arrived after it.
