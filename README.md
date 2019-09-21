@@ -55,6 +55,18 @@ We introduce a new constructor, `HandledPromise`, for making handled promises. T
 | `p.[[ApplySend]](args)` | `apply(p, args)` |
 | `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
 
+The static methods first do the equivalent of `Promise.resolve` on their first argument, to coerce it to a promise with these internal methods. Thus, for example,
+
+```js
+HandledPromise.get(p, prop)
+```
+actual does the equivalent of
+```
+Promise.resolve(p).[[GetSend]](prop)
+```
+
+Via the internal methods, the static methods cause either the default behavior, or, for handled promises, the behavior that calls the associated handler trap.
+
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
 | `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
@@ -63,7 +75,7 @@ We introduce a new constructor, `HandledPromise`, for making handled promises. T
 | `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
 | `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
 
-To protect against reentrancy, the proxy internal method postpones the execution of the handler trap to a later turn, and immediately returns a promise for what the trap will return. For example, for the [[GetSend]] internal method of handled promises is effectively
+To protect against reentrancy, the proxy internal method postpones the execution of the handler trap to a later turn, and immediately returns a promise for what the trap will return. For example, the [[GetSend]] internal method of handled promises is effectively
 
 ```js
 p.then(t => h.get(t, prop))
