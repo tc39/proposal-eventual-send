@@ -48,7 +48,7 @@ Following this analogy, we add the internal eventual-send methods to all promise
 We introduce a new constructor, `HandledPromise`, for making handled promises. The static methods below are static methods of this constructor.
 
 | Internal Method | Static Method | Default Behaviour | Handler trap |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | `p.[[GetSend]](prop)` | `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
 | `p.[[SetSend]](prop, value)` | `set(p, prop, value)` | `p.then(t => (t[prop] = value))` | `h.set(t, prop, value)` |
 | `p.[[DeleteSend]](prop)` | `delete(p, prop)` | `p.then(t => delete t[prop])` | `h.delete(t, prop)` |
