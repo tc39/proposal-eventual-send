@@ -138,6 +138,11 @@ new HandledPromise((resolve, reject) => ...)
 
 This handler is not exposed to the user of the handled promise, so it provides a secure separation between the unprivileged client (which uses the `E`, `E.sendOnly` or static `HandledPromise` methods) and the privileged  system which implements the communication mechanism.
 
+### HandledPromise.prototype
+
+Although `HandledPrmise` is class-like, it is not intended to act like a class distinct from `Promise`. This, the initial value of `HandledPromise.prototype` is the same as the initial value of `Promise.prototype`. Code that holds a promise cannot sense whether it holds a handled or unhandled promise.
+
+
 ### Handler traps
 
 A handler object can provide handler traps (`get`, `set`, `delete`, `apply`, `applyMethod`) and their associated `*SendOnly` traps.
@@ -203,7 +208,7 @@ HandledPromise.applyMethodSendOnly(target, prop, args); // undefined
 
 ## Platform Support
 
-All the above behavior, as described so far, is implemented in the *eventual-send-shim*. However, there is one critical behavior that we specify, that can easily be provided by a conforming platform, but is infeasible to emulate on top of current platform promises. Without it, many cases that should pipeline do not, disrupting desired ordering guarantees. Consider:
+All the above behavior, as described so far, is implemented in the [Eventual Send Shim](https://github.com/Agoric/eventual-send) (TODO update to proposed API). However, there is one critical behavior that we specify, that can easily be provided by a conforming platform, but is infeasible to emulate on top of current platform promises. Without it, many cases that should pipeline do not, disrupting desired ordering guarantees. Consider:
 
 ```js
 let pr;
@@ -217,3 +222,7 @@ pr.resolve(qr);
 After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded to `q` and trap to `q`'s `unresolvedHandler`. Although a shim could monkey patch the `Promise` constructor to provide an altered `resolve` function which does that, there are plenty of internal resolution steps that would bypass it. There is no way for a shim to detect that unresolved unhandled promise `p` has been resolved to unresolved handled `q` by one of these. Instead, the `foo` invocation will languish until a round trip fulfills `q`, thus
    * losing the benefits of promises pipelining,
    * arriving after messages that should have arrived after it.
+
+## Syntactic Support
+
+A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot) proposes a more convenient syntax for the calling the new internal methods proposed here. However, this proposal is value even without the wavy dot syntax.
