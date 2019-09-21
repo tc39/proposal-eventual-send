@@ -228,7 +228,7 @@ const p = new Promise(r => pr = r);
 E(p).foo();
 let qr;
 const q = new HandledPromise(r => qr = r, unresolvedHandler);
-pr.resolve(qr);
+pr.resolve(q);
 ```
 
 After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded to `q` and trap to `q`'s `unresolvedHandler`. Although a shim could monkey patch the `Promise` constructor to provide an altered `resolve` function which does that, there are plenty of internal resolution steps that would bypass it. There is no way for a shim to detect that unresolved unhandled promise `p` has been resolved to unresolved handled `q` by one of these. Instead, the `foo` invocation will languish until a round trip fulfills `q`, thus
