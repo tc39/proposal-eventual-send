@@ -237,4 +237,4 @@ After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded t
 
 ## Syntactic Support
 
-A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot) proposes a more convenient syntax for the calling the new internal methods proposed here. However, this proposal is value even without the wavy dot syntax.
+A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot) proposes a more convenient syntax for calling the new internal methods proposed here. However, this proposal is valuable even without the wavy dot syntax.
