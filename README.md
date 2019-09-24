@@ -138,31 +138,42 @@ Via the internal methods, the static methods cause either the default behavior, 
 | `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
 | `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
 
-To protect against reentrancy, the proxy internal method postpones the execution of the handler trap to a later turn, and immediately returns a promise for what the trap will return. For example, the [[GetSend]] internal method of a handled promise is effectively
+To protect against reentrancy, the proxy internal method postpones the
+execution of the handler trap to a later turn, and immediately returns a
+promise for what the trap will return.  For example, the [[GetSend]] internal
+method of a handled promise is effectively
 
 ```js
 p.then(t => h.get(t, prop))
 ```
 
-Sometimes, these operations will be used to cause remote effects while ignoring the local promise for the result. For distributed messaging protocols, the extra bookkeeping for these return results are sufficiently expensive that we should be able to avoid it when unneeded. To support this, we introduce the "SendOnly" variants of these methods. We show only the SendOnly variant of the [[Get]] trap, as all the others follow exactly the same pattern.
+Sometimes, these operations will be used to cause remote effects while ignoring
+the local promise for the result.  For distributed messaging protocols, the
+extra bookkeeping for these return results are sufficiently expensive that we
+should be able to avoid it when it is not needed.  To support this, we
+introduce the "SendOnly" variants of these methods.  For example, the SendOnly
+variant of the [[Get]] trap looks like this:
 
-| Internal Method | Static Method |
-| --- | --- |
-| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` |
+| Internal Method | Static Method | Default Behavior | Handler trap |
+| --- | --- | --- | --- |
+| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
 
-| Static Method | Default Behavior | Handler trap |
-| --- | --- | --- |
-| `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
+The others (Set, Delete, Apply, and ApplyMethod) all follow exactly the same
+pattern.  We will collectively refer to these as the "\*SendOnly" operations.
 
-No matter what the \*SendOnly handler trap returns, the proxy internal [[\*SendOnly]] method always immediately returns `undefined`.
+No matter what a \*SendOnly handler trap returns, the proxy internal
+[[\*SendOnly]] method always immediately returns `undefined`.
 
-When a "SendOnly" trap is absent, the trap behavior defaults to the corresponding non-SendOnly trap. But again, the proxy internal [[\*SendOnly]] method always immediately returns `undefined`, and so is effectively
+When a "SendOnly" trap is absent, the trap behavior defaults to the
+corresponding non-SendOnly trap.  But again, the proxy internal [[\*SendOnly]]
+method always immediately returns `undefined`, and so is effectively, for
+example:
 
 ```js
 void p.then(t => h.get(t, prop))
 ```
 
-### E and E.sendOnly Convenience Proxies
+### `E` and `E.sendOnly` Convenience Proxies
 
 Probably the most common distributed programming case, invocation of remote methods with or without requiring return results, can be implemented by powerless proxies.  All authority needed to enable communication between the peers can be implemented in the handled promise infrastructure.
 
@@ -191,7 +202,7 @@ E(fileP).read().then(contents => {
 });
 ```
 
-### HandledPromise constructor
+### `HandledPromise` constructor
 
 In a manner analogous to *Proxy* handlers, a **handled promise** is associated with a handler object.
 
@@ -213,7 +224,7 @@ new HandledPromise((resolve, reject) => ...)
 
 This handler is not exposed to the user of the handled promise, so it provides a secure separation between the unprivileged client (which uses the `E`, `E.sendOnly` or static `HandledPromise` methods) and the privileged  system which implements the communication mechanism.
 
-### HandledPromise.prototype
+### `HandledPromise.prototype`
 
 Although `HandledPromise` is class-like, it is not intended to act like a class distinct from `Promise`. The initial value of `HandledPromise.prototype` is the same as the initial value of `Promise.prototype`. Code that holds a promise cannot sense whether it holds a handled or an unhandled promise.
 
