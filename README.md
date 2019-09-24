@@ -87,8 +87,8 @@ proposing a particular implementation of remote messaging.
 
 ## Design Principles
 
-1. Prevent reentrancy attacks (a form of plan interference).
 1. Support *promise pipelining* to reduce the cost of network latency.
+1. Prevent reentrancy attacks (a form of plan interference).
 
 ## Details
 
@@ -118,7 +118,9 @@ promises. The static methods below are static methods of this constructor.
 | `p.[[ApplySend]](args)` | `apply(p, args)` |
 | `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
 
-The static methods first do the equivalent of `Promise.resolve` on their first argument, to coerce it to a promise with these internal methods. Thus, for example,
+The static methods first do the equivalent of `Promise.resolve` on their first
+argument, to coerce it to a promise with these internal methods.  Thus, for
+example,
 
 ```js
 HandledPromise.get(p, prop)
@@ -128,7 +130,8 @@ actual does the equivalent of
 Promise.resolve(p).[[GetSend]](prop)
 ```
 
-Via the internal methods, the static methods cause either the default behavior, or, for handled promises, the behavior that calls the associated handler trap.
+Via the internal methods, the static methods cause either the default behavior,
+or, for handled promises, the behavior that calls the associated handler trap.
 
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
@@ -158,8 +161,9 @@ variant of the [[Get]] trap looks like this:
 | --- | --- | --- | --- |
 | `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
 
-The others (Set, Delete, Apply, and ApplyMethod) all follow exactly the same
-pattern.  We will collectively refer to these as the "\*SendOnly" operations.
+The others ([[SetSendOnly]], [[ApplySendOnly]], etc.) all follow exactly the
+same pattern.  We will collectively refer to these as the "\*SendOnly"
+operations.
 
 No matter what a \*SendOnly handler trap returns, the proxy internal
 [[\*SendOnly]] method always immediately returns `undefined`.
@@ -173,17 +177,22 @@ example:
 void p.then(t => h.get(t, prop))
 ```
 
-### `E` and `E.sendOnly` Convenience Proxies
+### `E` and `E.sendOnly` convenience proxies
 
-Probably the most common distributed programming case, invocation of remote methods with or without requiring return results, can be implemented by powerless proxies.  All authority needed to enable communication between the peers can be implemented in the handled promise infrastructure.
+Probably the most common distributed programming case, invocation of remote
+methods with or without requiring return results, can be implemented by
+powerless proxies.  All authority needed to enable communication between the
+peers can be implemented in the handled promise infrastructure.
 
-The `E(target)` proxy maker wraps a remote target and allows for a single remote method call returning a promise for the result.
+The `E(target)` proxy maker wraps a remote target and allows for a single
+remote method call returning a promise for the result.
 
 ```js
 E(target).method(arg1, arg2...) // Promise<result>
 ```
 
-`E.sendOnly(target)` is similar, but declares that we do not want the result (or even acknowledgement). It always immediately returns `undefined`.
+`E.sendOnly(target)` is similar, but declares that we do not want the result
+(or even acknowledgement).  It always immediately returns `undefined`.
 
 Example usage:
 
@@ -204,7 +213,8 @@ E(fileP).read().then(contents => {
 
 ### `HandledPromise` constructor
 
-In a manner analogous to *Proxy* handlers, a **handled promise** is associated with a handler object.
+In a manner analogous to *Proxy* handlers, a **handled promise** is associated
+with a handler object.
 
 For example,
 
@@ -222,11 +232,22 @@ resolve(myPromise)
 new HandledPromise((resolve, reject) => ...)
 ```
 
-This handler is not exposed to the user of the handled promise, so it provides a secure separation between the unprivileged client (which uses the `E`, `E.sendOnly` or static `HandledPromise` methods) and the privileged  system which implements the communication mechanism.
+*{{I'm concerned that this example is confusing in that it is not a single
+ coherent block of code but rather a bunch of individual lines that look as if
+ they go together but don't.  This is particularly confusing following the
+ prior code block example which _was_ a single coherent body -- Chip}}*
+
+This handler is not exposed to the user of the handled promise, so it provides
+a secure separation between the unprivileged client (which uses the `E`,
+`E.sendOnly` or static `HandledPromise` methods) and the privileged system
+which implements the communication mechanism.
 
 ### `HandledPromise.prototype`
 
-Although `HandledPromise` is class-like, it is not intended to act like a class distinct from `Promise`. The initial value of `HandledPromise.prototype` is the same as the initial value of `Promise.prototype`. Code that holds a promise cannot sense whether it holds a handled or an unhandled promise.
+Although `HandledPromise` is class-like, it is not intended to act like a class
+distinct from `Promise`.  The initial value of `HandledPromise.prototype` is
+the same as the initial value of `Promise.prototype`.  Code that holds a
+promise cannot sense whether it holds a handled or an unhandled promise.
 
 
 ### Handler traps
@@ -248,22 +269,34 @@ A handler object can provide handler traps (`get`, `set`, `delete`, `apply`, `ap
 }
 ```
 
-If the handler does not provide a `*SendOnly` trap, its default implementation is the non-send-only trap with a return value of `undefined` (not a promise).
+If the handler does not provide a `*SendOnly` trap, its default implementation
+is the non-send-only trap with a return value of `undefined` (not a promise).
 
-If the handler omits a non-send-only trap, invoking the associated operation returns a promise rejection.  The only exception to that behaviour is if the handler does not provide the `applyMethod` optimization trap.  Then, its default implementation is
+If the handler omits a non-send-only trap, invoking the associated operation
+returns a promise rejection.  The only exception to that behaviour is if the
+handler does not provide the `applyMethod` optimization trap.  Then, its
+default implementation is
 ```js
 HandledPromise.apply(HandledPromise.get(p, prop), args)
 ```
 
-This expansion requires that the promise for the remote method be unnecessarily reified.
+This expansion requires that the promise for the remote method be unnecessarily
+reified.
 
-For an unfulfilled handler, the trap's `target` argument is the unfulfilled handled promise, so that it can gain control before the promise is resolved.  For a fulfilled handler, the method's `target` argument is the result of the fulfillment, since it is available.
+For an unfulfilled handler, the trap's `target` argument is the unfulfilled
+handled promise, so that it can gain control before the promise is resolved.
+For a fulfilled handler, the method's `target` argument is the result of the
+fulfillment, since it is available.
 
-### HandledPromise static methods
+### `HandledPromise` static methods
 
-The methods in this section are used to implement higher-level communication primitives, such as the `E` proxy maker.
+The methods in this section are used to implement higher-level communication
+primitives, such as the `E` proxy maker.
 
-These methods are analogous to the `Reflect` API, but asynchronously invoke a handled promise's handler regardless of whether the target has resolved.  This is necessary in order to allow pipelining of messages before the exact destination is known (i.e. after the handled promise is resolved).
+These methods are analogous to the `Reflect` API, but asynchronously invoke a
+handled promise's handler regardless of whether the target has resolved.  This
+is necessary in order to allow pipelining of messages before the exact
+destination is known (i.e. after the handled promise is resolved).
 
 ```js
 HandledPromise.get(target, prop); // Promise<result>
@@ -285,7 +318,9 @@ HandledPromise.apply(target, [args]); // Promise<result>
 HandledPromise.applySendOnly(target, [args]); // undefined
 ```
 
-The `applyMethod` call combines property lookup with function application in order to distinguish them from a `get` whose value is separately inspected, and for the handler to be able to bundle the two operations as a single message.
+The `applyMethod` call combines property lookup with function application in
+order to distinguish them from a `get` whose value is separately inspected, and
+for the handler to be able to bundle the two operations as a single message.
 
 ```js
 HandledPromise.applyMethod(target, prop, args); // Promise<result>
@@ -294,7 +329,12 @@ HandledPromise.applyMethodSendOnly(target, prop, args); // undefined
 
 ## Platform Support
 
-All the above behavior, as described so far, is implemented in the [Eventual Send Shim](https://github.com/Agoric/eventual-send) (TODO update to proposed API). However, there is one critical behavior that we specify, that can easily be provided by a conforming platform, but is infeasible to emulate on top of current platform promises. Without it, many cases that should pipeline do not, disrupting desired ordering guarantees. Consider:
+All the above behavior, as described so far, is implemented in the [Eventual
+Send Shim](https://github.com/Agoric/eventual-send) (TODO update to proposed
+API).  However, there is one critical behavior that we specify, that can easily
+be provided by a conforming platform, but is infeasible to emulate on top of
+current platform promises.  Without it, many cases that should pipeline do not,
+disrupting desired ordering guarantees. Consider:
 
 ```js
 let pr;
@@ -305,10 +345,19 @@ const q = new HandledPromise(r => qr = r, unresolvedHandler);
 pr.resolve(q);
 ```
 
-After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded to `q` and trap to `q`'s `unresolvedHandler`. Although a shim could monkey patch the `Promise` constructor to provide an altered `resolve` function which does that, there are plenty of internal resolution steps that would bypass it. There is no way for a shim to detect that unresolved unhandled promise `p` has been resolved to unresolved handled `q` by one of these. Instead, the `foo` invocation will languish until a round trip fulfills `q`, thus
-   * losing the benefits of promises pipelining,
+After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded
+to `q` and trap to `q`'s `unresolvedHandler`.  Although a shim could monkey
+patch the `Promise` constructor to provide an altered `resolve` function which
+does that, there are plenty of internal resolution steps that would bypass it.
+There is no way for a shim to detect that unresolved unhandled promise `p` has
+been resolved to unresolved handled `q` by one of these.  Instead, the `foo`
+invocation will languish until a round trip fulfills `q`, thus
+   * losing the benefits of promise pipelining,
    * arriving after messages that should have arrived after it.
 
 ## Syntactic Support
 
-A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot) proposes a more convenient syntax for calling the new internal methods proposed here. However, this proposal is valuable even without the wavy dot syntax.
+A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot)
+proposes a more convenient syntax for calling the new internal methods proposed
+here.  However, the eventual-send interface proposed here is valuable even
+without the wavy dot syntax.
