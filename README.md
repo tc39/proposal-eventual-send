@@ -2,29 +2,84 @@
 By Mark S. Miller (@erights), Chip Morningstar (@FUDCo), and Michael FIG (@michaelfig)
 
 **ECMAScript Eventual Send: Support distributed promise pipelining**
-## Summary
 
-Promises in Javascript were proposed in 2011 at the [ECMAScript strawman
+## Background
+
+Promises were invented in the late 1980s, originally as a technique for
+compensating for roundtrip latency in operations invoked remotely over a
+network, though promises have since proven valuable for dealing with all manner
+of asynchronous delays in computational systems.
+
+The fundamental insight behind promises is this: in the classic presentation of
+object oriented programming, an object is something that you can send messages
+to in order to invoke operations on it.  If the result of such an operation is
+another object, that result in turn is something that you can send messages to.
+If the operation initiated by a message entails an asynchronous delay to get
+the result, rather than forcing the sender to wait (possibly a long time) for
+the result to eventually become available, the system can instead immediately
+return another object - a promise - that can stand in for the result in the
+meantime.  Since, as was just said, an object is something you send messages
+to, a promise is, in that respect, potentially as good as the object it is a
+promise for -- you simply send it messages as if it was the actual result.  The
+promise can't perform the invoked operation directly, since what that means is
+not yet known, but it *can* enqueue the request for later processing or relay
+it to the other end of a network connection where the result will eventually be
+known.  This deferall of operations through enqueuing or relaying can be
+pipelined an arbitrary number of operations deep; it is only at the point where
+there is a semantic requirement to actually see the result (such as the need to
+display it to a human) that the pipeline must stall to await the final outcome.
+Furthermore, experience with this paradigm has shown that the point at which
+such waiting is truly required can often be much later in a chain of
+computational activity than many people's intuitions lead them to expect.
+
+Since network latency is often the largest component of delay in a remotely
+invoked operation, the overlapping of network transmissions that promise
+pipelining makes possible can result an enormous overall improvement in
+throughput in distributed systems.  For example, implementations of promise
+pipelining for remote method invocation in the [Xanadu hypertext
+system][http://udanax.xanadu.com/gold/] and in Microsoft's [Midori operating
+system][http://joeduffyblog.com/2015/11/03/blogging-about-midori/] measured
+speedups of 10 to 1,000 over traditional synchronous RPC, depending on use
+case.
+
+Promises in JavaScript were proposed in the 2011 [ECMAScript strawman
 concurrency
 proposal](https://web.archive.org/web/20161026162206/http://wiki.ecmascript.org/doku.php?id=strawman:concurrency).
-These promises descend from the [E language](http://erights.org/) via
-the [Waterken Q library](http://waterken.sourceforge.net/web_send/)
-and [Kris Kowal's Q library](https://github.com/kriskowal/q). A good
-early presentation is Tom Van Cutsem's [Communicating Event Loops: An
-exploration in Javascript](http://soft.vub.ac.be/~tvcutsem/talks/presentations/WGLD_CommEventLoops.pdf). All of these are about promises as a first step towards distributed computing, by using promises as asynchronous references to remote objects.
+These promises descend from the [E language](http://erights.org/) via the
+[Waterken Q library](http://waterken.sourceforge.net/web_send/) and [Kris
+Kowal's Q library](https://github.com/kriskowal/q).  A good early presentation
+is Tom Van Cutsem's [Communicating Event Loops: An exploration in
+JavaScript](http://soft.vub.ac.be/~tvcutsem/talks/presentations/WGLD_CommEventLoops.pdf).
+All of these efforts introduced promises as a first step towards distributed
+computing, with the goal of using promises as asynchronous references to remote
+objects.  However, since the JavaScript language itself does not contain any
+intrinsic I/O machinery, relying entirely on the host environment for this,
+Promises as JavaScript currently defines them are not sufficient to realize the
+distributed computation vision they were originally motivated by.
 
-Kris Kowal's [Q-connection
-library](https://github.com/kriskowal/q-connection) extended Q's
-promises for distributed computing with [promise pipelining](https://capnproto.org/rpc.html), essentially in the way we have in mind. However, in the absence of platform support for [Weak
-References](https://github.com/tc39/proposal-weakrefs), this approach
-was not practical. Given weak references, the [Midori
-project](http://joeduffyblog.com/2015/11/19/asynchronous-everything/)
-and [Cap'n Proto](https://capnproto.org/rpc.html), among others,
-demonstrate that this approach to distributed computing works well at
-scale.
+Kris Kowal's [Q-connection library](https://github.com/kriskowal/q-connection)
+extended Q's promises for distributed computing with [promise
+pipelining](https://capnproto.org/rpc.html), essentially in the way we have in
+mind.  However, in the absence of platform support for [Weak
+References](https://github.com/tc39/proposal-weakrefs), this approach was not
+practical.  Given weak references, the [Midori
+project](http://joeduffyblog.com/2015/11/19/asynchronous-everything/) and
+[Cap'n Proto](https://capnproto.org/rpc.html), among others, demonstrate that
+this approach to distributed computing works well at scale.
 
-We add *eventual-send* operations to promises, to express invocations of potentially remote objects. We explain the notion of a *handled Promise*, whose handler can provide alternate eventual-send behaviors. These mechanisms, together with weak references, enable writing remote object communications systems, but they are not specific to any one. This proposal does not include any specific usage of the mechanisms we propose, except as a motivating
-example and test of adequacy.
+This proposal adds *eventual-send* operations to promises, to express
+invocations of potentially remote objects.  We introduce the notion of a
+*handled Promise*, whose handler can provide alternate eventual-send behavior.
+These mechanisms, together with weak references, enable the creation of remote
+object communications systems, but without committing to any specific
+implementation.  In particular, this proposal specifies a general mechanism for
+hooking in whatever host-provided remote communications facilities are at hand,
+without constraining the nature of those facilities.
+
+This proposal does not mandate any specific usage of the mechanisms it
+describes.  Such usages as are mentioned here are provided as explanatory and
+motivating examples and as ways testing the adequacy of the design, rather than
+proposing a particular implementation of remote messaging.
 
 
 ## Design Principles
