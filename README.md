@@ -232,10 +232,10 @@ resolve(myPromise)
 new HandledPromise((resolve, reject) => ...)
 ```
 
-*{{I'm concerned that this example is confusing in that it is not a single
- coherent block of code but rather a bunch of individual lines that look as if
- they go together but don't.  This is particularly confusing following the
- prior code block example which _was_ a single coherent body -- Chip}}*
+*{{This example is confusing in that it is not a single coherent block of code
+ but rather a bunch of individual lines that look as if they go together but
+ don't.  This is particularly confusing following the prior code block example
+ which *_was_* a single coherent body}}*
 
 This handler is not exposed to the user of the handled promise, so it provides
 a secure separation between the unprivileged client (which uses the `E`,
@@ -359,5 +359,5 @@ invocation will languish until a round trip fulfills `q`, thus
 
 A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot)
 proposes a more convenient syntax for calling the new internal methods proposed
-here.  However, the eventual-send interface proposed here is valuable even
-without the wavy dot syntax.
+here.  However, the eventual-send API described here is valuable even without
+the wavy dot syntax.
