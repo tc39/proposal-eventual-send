@@ -37,8 +37,8 @@ invoked operation, the overlapping of network transmissions that promise
 pipelining makes possible can result an enormous overall improvement in
 throughput in distributed systems.  For example, implementations of promise
 pipelining for remote method invocation in the [Xanadu hypertext
-system][http://udanax.xanadu.com/gold/] and in Microsoft's [Midori operating
-system][http://joeduffyblog.com/2015/11/03/blogging-about-midori/] measured
+system](http://udanax.xanadu.com/gold/) and in Microsoft's [Midori operating
+system](http://joeduffyblog.com/2015/11/03/blogging-about-midori/) measured
 speedups of 10 to 1,000 over traditional synchronous RPC, depending on use
 case.
 
