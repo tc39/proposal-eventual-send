@@ -1,7 +1,7 @@
-# Eventual Send: Support distributed promise pipelining
+# Eventual-Send: Support for distributed promise pipelining
 By Mark S. Miller (@erights), Chip Morningstar (@FUDCo), and Michael FIG (@michaelfig)
 
-**ECMAScript Eventual Send: Support distributed promise pipelining**
+**ECMAScript Eventual-Send: Support for distributed promise pipelining**
 
 ## Background
 
@@ -54,8 +54,8 @@ All of these efforts introduced promises as a first step towards distributed
 computing, with the goal of using promises as asynchronous references to remote
 objects.  However, since the JavaScript language itself does not contain any
 intrinsic I/O machinery, relying entirely on the host environment for this,
-Promises as JavaScript currently defines them are not sufficient to realize the
-distributed computation vision they were originally motivated by.
+Promises as JavaScript currently defines them are not by themselves sufficient
+to realize the distributed computation vision that originally motivated them.
 
 Kris Kowal's [Q-connection library](https://github.com/kriskowal/q-connection)
 extended Q's promises for distributed computing with [promise
@@ -67,14 +67,17 @@ project](http://joeduffyblog.com/2015/11/19/asynchronous-everything/) and
 [Cap'n Proto](https://capnproto.org/rpc.html), among others, demonstrate that
 this approach to distributed computing works well at scale.
 
-This proposal adds *eventual-send* operations to promises, to express
-invocations of potentially remote objects.  We introduce the notion of a
-*handled Promise*, whose handler can provide alternate eventual-send behavior.
-These mechanisms, together with weak references, enable the creation of remote
-object communications systems, but without committing to any specific
-implementation.  In particular, this proposal specifies a general mechanism for
-hooking in whatever host-provided remote communications facilities are at hand,
-without constraining the nature of those facilities.
+## Summary
+
+This proposal adds *eventual-send* operations to JavaScript Promises, to
+express invocation of operations on potentially remote objects.  We introduce
+the notion of a *handled Promise*, whose handler can provide alternate
+eventual-send behavior.  These mechanisms, together with weak references,
+enable the creation of remote object communications systems, but without
+committing to any specific implementation.  In particular, this proposal
+specifies a general mechanism for hooking in whatever host-provided remote
+communications facilities are at hand, without constraining the nature of those
+facilities.
 
 This proposal does not mandate any specific usage of the mechanisms it
 describes.  Such usages as are mentioned here are provided as explanatory and
@@ -85,11 +88,13 @@ proposing a particular implementation of remote messaging.
 ## Design Principles
 
 1. Prevent reentrancy attacks (a form of plan interference).
-3. Support *promise pipelining* to reduce the cost of network latency.
+1. Support *promise pipelining* to reduce the cost of network latency.
 
 ## Details
 
-To specify eventual-send operations and handled promises, we follow the pattern used to incorporate proxies into JavaScript: We specified...
+To specify eventual-send operations and handled promises, we follow the pattern
+used to incorporate proxies into JavaScript:  That pattern specified...
+
    * internal methods that all objects must support.
    * static `Reflect` methods for invoking these internal methods.
    * invariants that these methods must uphold.
@@ -98,9 +103,12 @@ To specify eventual-send operations and handled promises, we follow the pattern 
    * the remaining behavior in the proxy methods to guarantee that these invariants are upheld despite arbitrary behavior by the handler.
    * fallback behaviors for absent traps, implemented in terms of the remaining traps.
 
-Following this analogy, we add the internal eventual-send methods to all promises, provide default behaviors for unhandled promises, and introduce handled promises whose handlers provide traps for these methods.
+Following this analogy, this proposal adds internal eventual-send methods
+to all promises, provides default behaviors for unhandled promises, and
+introduces handled promises whose handlers provide traps for these methods.
 
-We introduce a new constructor, `HandledPromise`, for making handled promises. The static methods below are static methods of this constructor.
+A new constructor, `HandledPromise`, enables the creation of handled
+promises. The static methods below are static methods of this constructor.
 
 | Internal Method | Static Method |
 | --- | --- |
