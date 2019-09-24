@@ -211,7 +211,7 @@ E(fileP).read().then(contents => {
 });
 ```
 
-*{{This portion of the proposal is unclear.  (It's not event entirely obvious
+*{{This portion of the proposal is unclear.  (It's not even entirely obvious
  that it's part of the proposal at all.)  Perhaps this would be clarified by
  providing an example implementation for `E`?}}*
 
@@ -239,7 +239,7 @@ new HandledPromise((resolve, reject) => ...)
 *{{This example is confusing in that it is not a single coherent block of code
  but rather a bunch of individual lines that look as if they go together but
  don't.  This is particularly confusing following the prior code block example
- which* was *a single coherent body.}}*
+ which* _was_ *a single coherent body.}}*
 
 This handler is not exposed to the user of the handled promise, so it provides
 a secure separation between the unprivileged client (which uses the `E`,
