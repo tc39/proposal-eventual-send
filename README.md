@@ -361,3 +361,9 @@ A separate [Wavy Dot Proposal](https://github.com/Agoric/proposal-wavy-dot)
 proposes a more convenient syntax for calling the new internal methods proposed
 here.  However, the eventual-send API described here is valuable even without
 the wavy dot syntax.
+
+## TODO
+
+* Explain why we're choosing to modify Promise instead of using proxies.
+
+* Explain how promise pipelining isn't just a fluent API
