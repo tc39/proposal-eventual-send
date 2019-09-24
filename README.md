@@ -239,7 +239,7 @@ new HandledPromise((resolve, reject) => ...)
 *{{This example is confusing in that it is not a single coherent block of code
  but rather a bunch of individual lines that look as if they go together but
  don't.  This is particularly confusing following the prior code block example
- which* _was_ *a single coherent body.}}*
+ which* __was__ *a single coherent body.}}*
 
 This handler is not exposed to the user of the handled promise, so it provides
 a secure separation between the unprivileged client (which uses the `E`,
