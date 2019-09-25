@@ -177,22 +177,52 @@ example:
 void p.then(t => h.get(t, prop))
 ```
 
-### `E` and `E.sendOnly` convenience proxies
+### E Proxy Maker
 
-Probably the most common distributed programming case, invocation of remote
-methods with or without requiring return results, can be implemented by
+Probably the most common distributed programming cases, invocation of remote
+methods or functions, with or without requiring return results, can be implemented by
 powerless proxies.  All authority needed to enable communication between the
 peers can be implemented in the handled promise infrastructure.
 
-The `E(target)` proxy maker wraps a remote target and allows for a single
-remote method call returning a promise for the result.
+The `E(target)` proxy maker wraps a remote target as an `EProxy`, which can
+be called as a remote function, and whose properties (except `then`, `catch`,
+`finally`, and `sendOnly`) result in EProxies.  An EProxy can also be treated
+as a promised value, in the case of remote property lookups.
 
-```js
-E(target).method(arg1, arg2...) // Promise<result>
+```ts
+interface EProxy {
+  // This signature allows calling to result in a new proxy.
+  (...args: unknown[]): EProxy;
+
+  // These methods allow interpretation as a promised value.
+  readonly then: typeof Promise<unknown>['then'];
+  readonly catch: typeof Promise<unknown>['catch'];
+  readonly finally: typeof Promise<unknown>['finally'];
+  
+  readonly sendOnly: SendOnlyProxy; // Facet of the callable, below...
+
+  // Other property lookups result in a new proxy.
+  readonly [prop: string | number]: EProxy;
+}
+
+E(targetP).prop // ECallable
+E(targetP).method(arg1, arg2...) // EProxy
+E(targetP)(arg1, arg2...) // EProxy
 ```
 
-`E.sendOnly(target)` is similar, but declares that we do not want the result
-(or even acknowledgement).  It always immediately returns `undefined`.
+`.sendOnly` extracts a SendOnlyProxy facet from an EProxy, which
+declares that we do not want the result (or even acknowledgement) when we
+make a final function or method call.  It always immediately returns `undefined`:
+
+```js
+type SendOnlyCallable = (...args: unknown[]) => void;
+interface SendOnlyProxy {
+  readonly [prop: string | number]: SendOnlyCallable; // Prepare a method call.
+}
+
+E(target).sendOnly.method(arg1, arg2...) // undefined
+E(target).sendOnly(arg1, arg2...) // undefined
+```
 
 Example usage:
 
@@ -200,18 +230,29 @@ Example usage:
 import { E } from 'js:eventual-send';
 
 // Invoke pipelined RPCs.
-const fileP = E(
-  E(target).openDirectory(dirName)
-).openFile(fileName);
+const fileE = E(target).openDirectory(dirName).openFile(fileName);
+// Get the file metadata object which is a property of fileE's resolution.
+fileE.metadata.then(metadata => console.log('file metadata', metadata));
 // Process the read results after a round trip.
-E(fileP).read().then(contents => {
+fileE.read().then(contents => {
   console.log('file contents', contents);
   // We don't use the result of this send.
-  E.sendOnly(fileP).append('fire-and-forget');
+  fileE.sendOnly.append('fire-and-forget');
 });
 ```
 
-### `HandledPromise` constructor
+Although more convenient than writing out the explicit `HandledPromise` calls,
+the `E` proxy maker contains a mixing of concerns which can only be disambiguated 
+by reserving the `then`, `catch`, `finally` and `sendOnly` properties.
+This mixing unfortunately makes it troublesome for the reader of the source code to
+understand which invocations result in EProxies, which result in just Thenables,
+and which are local.
+
+To recover readability, and also support the asynchronous `set`, `has`, and
+`delete` traps, we are separately proposing the
+[Wavy Dot Syntax](https://github.com/Agoric/proposal-wavy-dot).
+
+### HandledPromise constructor
 
 In a manner analogous to *Proxy* handlers, a **handled promise** is associated
 with a handler object.
@@ -250,9 +291,9 @@ const targetP = new HandledPromise(executor, unfulfilledHandler);
 E(targetP).remoteMethod(someArg, someArg2).callOnResult(...otherArgs);
 ```
 
-The handlers are not exposed to the user of the handled promise, so it provides
-a secure separation between the unprivileged client (which uses the `E`,
-`E.sendOnly` or static `HandledPromise` methods) and the privileged system
+This handler is not exposed to the user of the handled promise, so it provides
+a secure separation between the unprivileged client (which uses `E` or static
+`HandledPromise` methods) and the privileged system
 which implements the communication mechanism.
 
 ### `HandledPromise.prototype`
