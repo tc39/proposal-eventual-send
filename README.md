@@ -211,10 +211,6 @@ E(fileP).read().then(contents => {
 });
 ```
 
-*{{This portion of the proposal is unclear.  (It's not even entirely obvious
- that it's part of the proposal at all.)  Perhaps this would be clarified by
- providing an example implementation for `E`?}}*
-
 ### `HandledPromise` constructor
 
 In a manner analogous to *Proxy* handlers, a **handled promise** is associated
@@ -225,23 +221,36 @@ For example,
 ```js
 import { HandledPromise } from 'js:eventual-send';
 
-// create a handled promise with initial handler:
-new HandledPromise((resolve, reject) => ..., unfulfilledHandler);
-// designate a different handler after resolution:
-resolve(presence, fulfilledHandler)
-// or use the same handler as myPromise
-resolve(myPromise)
+const executor = async (resolve, reject, resolveWithPresence) => {
+  // Do something that may need a delay to complete.
+  const { err, presenceHandler, other } = await determineResolution();
+  if (presenceHandler) {
+    // presence is a freshly-created Object.create(null) whose handler
+    // is presenceHandler.  The targetP below will be resolved to this
+    // presence.
+    const presence = resolveWithPresence(presenceHandler);
+    presence.toString = () => 'My Special Presence';
+  } else if (err) {
+    // Reject targetP with err.
+    reject(err);
+  } else {
+    // Resolve targetP to other, using other's handler if there is one.
+    resolve(other);
+  }
+};
 
-// the default unfulfilledHandler queues messages until resolution.
-new HandledPromise((resolve, reject) => ...)
+// Create a handled promise with initial handler.
+// If unfulfilledHandler is not specified (i.e. undefined), it will use
+// a builtin queueing handler until targetP is resolved/rejected.
+//
+// This default queueing handler would cause too much latency if the
+// handled promise actually triggers network traffic.  An actual
+// unfulfilledHandler could speculatively send traffic to remote hosts.
+const targetP = new HandledPromise(executor, unfulfilledHandler);
+E(targetP).remoteMethod(someArg, someArg2).callOnResult(...otherArgs);
 ```
 
-*{{This example is confusing in that it is not a single coherent block of code
- but rather a bunch of individual lines that look as if they go together but
- don't.  This is particularly confusing following the prior code block example
- which* __was__ *a single coherent body.}}*
-
-This handler is not exposed to the user of the handled promise, so it provides
+The handlers are not exposed to the user of the handled promise, so it provides
 a secure separation between the unprivileged client (which uses the `E`,
 `E.sendOnly` or static `HandledPromise` methods) and the privileged system
 which implements the communication mechanism.
@@ -256,12 +265,15 @@ promise cannot sense whether it holds a handled or an unhandled promise.
 
 ### Handler traps
 
-A handler object can provide handler traps (`get`, `set`, `delete`, `apply`, `applyMethod`) and their associated `*SendOnly` traps.
+A handler object can provide handler traps (`get`, `has`, `set`, `delete`, `apply`,
+`applyMethod`) and their associated `*SendOnly` traps.
 
 ```ts
 {
   get(target, prop): Promise<result>,
   getSendOnly(target, prop): void,
+  has(target, prop): Promise<boolean>,
+  hasSendOnly(target, prop): void,
   set(target, prop, value): Promise<boolean>,
   setSendOnly(target, prop, value): void,
   delete(target, prop): Promise<boolean>,
@@ -345,16 +357,16 @@ let pr;
 const p = new Promise(r => pr = r);
 E(p).foo();
 let qr;
-const q = new HandledPromise(r => qr = r, unresolvedHandler);
+const q = new HandledPromise(r => qr = r, unfulfilledHandler);
 pr.resolve(q);
 ```
 
 After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded
-to `q` and trap to `q`'s `unresolvedHandler`.  Although a shim could monkey
+to `q` and trap to `q`'s `unfulfilledHandler`.  Although a shim could monkey
 patch the `Promise` constructor to provide an altered `resolve` function which
 does that, there are plenty of internal resolution steps that would bypass it.
-There is no way for a shim to detect that unresolved unhandled promise `p` has
-been resolved to unresolved handled `q` by one of these.  Instead, the `foo`
+There is no way for a shim to detect that unfulfilled unhandled promise `p` has
+been resolved to unfulfilled handled `q` by one of these.  Instead, the `foo`
 invocation will languish until a round trip fulfills `q`, thus
    * losing the benefits of promise pipelining,
    * arriving after messages that should have arrived after it.
