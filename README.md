@@ -369,7 +369,8 @@ let pr;
 const p = new Promise(r => pr = r);
 E(p).foo();
 let qr;
-const q = new HandledPromise(r => qr = r, unfulfilledHandler);
+const q = new HandledPromise(r => qr = r,
+                             unfulfilledHandler);
 pr.resolve(q);
 ```
 
