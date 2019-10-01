@@ -277,18 +277,18 @@ A handler object can provide handler traps (`get`, `has`, `set`, `delete`, `appl
 
 ```ts
 {
-  get(target, prop): Promise<result>,
-  getSendOnly(target, prop): void,
-  has(target, prop): Promise<boolean>,
-  hasSendOnly(target, prop): void,
-  set(target, prop, value): Promise<boolean>,
-  setSendOnly(target, prop, value): void,
-  delete(target, prop): Promise<boolean>,
-  deleteSendOnly(target, prop): void,
-  apply(target, args): Promise<result>,
-  applySendOnly(target, args): void,
-  applyMethod(target, prop, args): Promise<result>,
-  applyMethodSendOnly(target, prop, args): void,
+  get                (target, prop):        Promise<result>,
+  getSendOnly        (target, prop):        void,
+  has                (target, prop):        Promise<boolean>,
+  hasSendOnly        (target, prop):        void,
+  set                (target, prop, value): Promise<boolean>,
+  setSendOnly        (target, prop, value): void,
+  delete             (target, prop):        Promise<boolean>,
+  deleteSendOnly     (target, prop):        void,
+  apply              (target, args):        Promise<result>,
+  applySendOnly      (target, args):        void,
+  applyMethod        (target, prop, args):  Promise<result>,
+  applyMethodSendOnly(target, prop, args):  void,
 }
 ```
 
