@@ -113,6 +113,7 @@ promises. The static methods below are static methods of this constructor.
 | Internal Method | Static Method |
 | --- | --- |
 | `p.[[GetSend]](prop)` | `get(p, prop)` |
+| `p.[[HasSend]](prop)` | `has(p, prop)` |
 | `p.[[SetSend]](prop, value)` | `set(p, prop, value)` |
 | `p.[[DeleteSend]](prop)` | `delete(p, prop)` |
 | `p.[[ApplySend]](args)` | `apply(p, args)` |
@@ -136,6 +137,7 @@ or, for handled promises, the behavior that calls the associated handler trap.
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
 | `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
+| `has(p, prop)` | `p.then(t => t[prop])` | `h.has(t, prop)` |
 | `set(p, prop, value)` | `p.then(t => (t[prop] = value))` | `h.set(t, prop, value)` |
 | `delete(p, prop)` | `p.then(t => delete t[prop])` | `h.delete(t, prop)` |
 | `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
@@ -157,9 +159,14 @@ should be able to avoid it when it is not needed.  To support this, we
 introduce the "SendOnly" variants of these methods.  For example, the SendOnly
 variant of the [[Get]] trap looks like this:
 
-| Internal Method | Static Method | Default Behavior | Handler trap |
-| --- | --- | --- | --- |
-| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
+
+| Internal Method | Static Method |
+| --- | --- |
+| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` |
+
+| Static Method | Default Behavior | Handler trap |
+| --- | --- | --- |
+| `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
 
 The others ([[SetSendOnly]], [[ApplySendOnly]], etc.) all follow exactly the
 same pattern.  We will collectively refer to these as the "\*SendOnly"
@@ -317,6 +324,11 @@ destination is known (i.e. after the handled promise is resolved).
 ```js
 HandledPromise.get(target, prop); // Promise<result>
 HandledPromise.getSendOnly(target, prop); // undefined
+```
+
+```js
+HandledPromise.has(target, prop); // Promise<result>
+HandledPromise.hasSendOnly(target, prop); // undefined
 ```
 
 ```js
