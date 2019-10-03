@@ -168,7 +168,7 @@ introduce the "SendOnly" variants of these methods.
 | `p.[[ApplyMethodSendOnly]](prop, args)`| `applyMethodSendOnly(p, prop, args)` |
 
 | Static Method | Handler trap |
-| --- | --- | --- |
+| --- | --- |
 | `getSendOnly(p, prop)`               | `h.getSendOnly(t, prop)` |
 | `hasSendOnly(p, prop)`               | `h.hasSendOnly(t, prop)` |
 | `setSendOnly(p, prop, value)`        | `h.setSendOnly(t, prop, value)` |
