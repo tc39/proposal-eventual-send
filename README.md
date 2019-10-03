@@ -229,6 +229,20 @@ E(fileP).read().then(contents => {
 In a manner analogous to *Proxy* handlers, a **handled promise** is associated
 with a handler object.
 
+```js
+new Promise((resolve, reject) => {...}
+           ) -> unhandled promise
+resolve(resolution) -> void
+reject(reason) -> void
+
+new HandledPromise((resolve, reject, resolveWithPresence) => {...},
+                   unfulfilledHandler)
+                  ) -> handled promise
+resolve(resolution) -> void
+reject(reason) -> void
+resolveWithPresence(presenceHandler) -> fresh presence
+```
+
 For example,
 
 ```js
