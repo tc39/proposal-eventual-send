@@ -275,7 +275,7 @@ const executor = async (resolve, reject, resolveWithPresence) => {
 // handled promise actually triggers network traffic.  An actual
 // unfulfilledHandler could speculatively send traffic to remote hosts.
 const targetP = new HandledPromise(executor, unfulfilledHandler);
-E(targetP).remoteMethod(someArg, someArg2).callOnResult(...otherArgs);
+E(E(targetP).remoteMethod(someArg, someArg2)).callOnResult(...otherArgs);
 ```
 
 The handlers are not exposed to the user of the handled promise, so it provides
