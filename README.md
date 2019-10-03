@@ -167,14 +167,14 @@ introduce the "SendOnly" variants of these methods.
 | `p.[[ApplyFunctionSendOnly]](args)`    | `applyFunctionSendOnly(p, args)` |
 | `p.[[ApplyMethodSendOnly]](prop, args)`| `applyMethodSendOnly(p, prop, args)` |
 
-| Static Method | Default Behavior | Handler trap |
+| Static Method | Handler trap |
 | --- | --- | --- |
-| `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
-| `hasSendOnly(p, prop)` | `void p.then(t => prop in t)` | `h.hasSendOnly(t, prop)` |
-| `setSendOnly(p, prop, value)` | `void p.then(t => (t[prop] = value))` | `h.setSendOnly(t, prop, value)` |
-| `deleteSendOnly(p, prop)` | `void p.then(t => delete t[prop])` | `h.deleteSendOnly(t, prop)` |
-| `applyFunctionSendOnly(p, args)` | `void p.then(t => t(...args))` | `h.applyFunctionSendOnly(t, args)` |
-| `applyMethodSendOnly(p, prop, args)` | `void p.then(t => t[prop](...args))` | `h.applyMethodSendOnly(t, prop, args)` |
+| `getSendOnly(p, prop)`               | `h.getSendOnly(t, prop)` |
+| `hasSendOnly(p, prop)`               | `h.hasSendOnly(t, prop)` |
+| `setSendOnly(p, prop, value)`        | `h.setSendOnly(t, prop, value)` |
+| `deleteSendOnly(p, prop)`            | `h.deleteSendOnly(t, prop)` |
+| `applyFunctionSendOnly(p, args)`     | `h.applyFunctionSendOnly(t, args)` |
+| `applyMethodSendOnly(p, prop, args)` | `h.applyMethodSendOnly(t, prop, args)` |
 
 
 
