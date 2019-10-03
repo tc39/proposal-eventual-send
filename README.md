@@ -156,21 +156,27 @@ Sometimes, these operations will be used to cause remote effects while ignoring
 the local promise for the result.  For distributed messaging protocols, the
 extra bookkeeping for these return results are sufficiently expensive that we
 should be able to avoid it when it is not needed.  To support this, we
-introduce the "SendOnly" variants of these methods.  For example, the SendOnly
-variant of the [[Get]] trap looks like this:
-
+introduce the "SendOnly" variants of these methods.
 
 | Internal Method | Static Method |
 | --- | --- |
-| `p.[[GetSendOnly]](prop)` | `getSendOnly(p, prop)` |
+| `p.[[GetSendOnly]](prop)`              | `getSendOnly(p, prop)` |
+| `p.[[HasSendOnly]](prop)`              | `hasSendOnly(p, prop)` |
+| `p.[[SetSendOnly]](prop, value)`       | `setSendOnly(p, prop, value)` |
+| `p.[[DeleteSendOnly]](prop)`           | `deleteSendOnly(p, prop)` |
+| `p.[[ApplyFunctionSendOnly]](args)`    | `applyFunctionSendOnly(p, args)` |
+| `p.[[ApplyMethodSendOnly]](prop, args)`| `applyMethodSendOnly(p, prop, args)` |
 
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
 | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
+| `hasSendOnly(p, prop)` | `void p.then(t => prop in t)` | `h.hasSendOnly(t, prop)` |
+| `setSendOnly(p, prop, value)` | `void p.then(t => (t[prop] = value))` | `h.setSendOnly(t, prop, value)` |
+| `deleteSendOnly(p, prop)` | `void p.then(t => delete t[prop])` | `h.deleteSendOnly(t, prop)` |
+| `applyFunctionSendOnly(p, args)` | `void p.then(t => t(...args))` | `h.applyFunctionSendOnly(t, args)` |
+| `applyMethodSendOnly(p, prop, args)` | `void p.then(t => t[prop](...args))` | `h.applyMethodSendOnly(t, prop, args)` |
 
-The others ([[SetSendOnly]], [[ApplyFunctionSendOnly]], etc.) all follow exactly the
-same pattern.  We will collectively refer to these as the "\*SendOnly"
-operations.
+
 
 No matter what a \*SendOnly handler trap returns, the proxy internal
 [[\*SendOnly]] method always immediately returns `undefined`.
