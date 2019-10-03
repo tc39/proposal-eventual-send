@@ -112,11 +112,11 @@ promises. The static methods below are static methods of this constructor.
 
 | Internal Method | Static Method |
 | --- | --- |
-| `p.[[GetSend]](prop)` | `get(p, prop)` |
-| `p.[[HasSend]](prop)` | `has(p, prop)` |
-| `p.[[SetSend]](prop, value)` | `set(p, prop, value)` |
-| `p.[[DeleteSend]](prop)` | `delete(p, prop)` |
-| `p.[[ApplySend]](args)` | `apply(p, args)` |
+| `p.[[GetSend]](prop)`              | `get(p, prop)` |
+| `p.[[HasSend]](prop)`              | `has(p, prop)` |
+| `p.[[SetSend]](prop, value)`       | `set(p, prop, value)` |
+| `p.[[DeleteSend]](prop)`           | `delete(p, prop)` |
+| `p.[[ApplyFunctionSend]](args)`    | `applyFunction(p, args)` |
 | `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
 
 The static methods first do the equivalent of `Promise.resolve` on their first
@@ -137,10 +137,10 @@ or, for handled promises, the behavior that calls the associated handler trap.
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
 | `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
-| `has(p, prop)` | `p.then(t => t[prop])` | `h.has(t, prop)` |
+| `has(p, prop)` | `p.then(t => prop in t)` | `h.has(t, prop)` |
 | `set(p, prop, value)` | `p.then(t => (t[prop] = value))` | `h.set(t, prop, value)` |
 | `delete(p, prop)` | `p.then(t => delete t[prop])` | `h.delete(t, prop)` |
-| `apply(p, args)` | `p.then(t => t(...args))` | `h.apply(t, args)` |
+| `applyFunction(p, args)` | `p.then(t => t(...args))` | `h.applyFunction(t, args)` |
 | `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
 
 To protect against reentrancy, the proxy internal method postpones the
@@ -168,7 +168,7 @@ variant of the [[Get]] trap looks like this:
 | --- | --- | --- |
 | `getSendOnly(p, prop)` | `void p.then(t => t[prop])` | `h.getSendOnly(t, prop)` |
 
-The others ([[SetSendOnly]], [[ApplySendOnly]], etc.) all follow exactly the
+The others ([[SetSendOnly]], [[ApplyFunctionSendOnly]], etc.) all follow exactly the
 same pattern.  We will collectively refer to these as the "\*SendOnly"
 operations.
 
@@ -272,24 +272,24 @@ promise cannot sense whether it holds a handled or an unhandled promise.
 
 ### Handler traps
 
-A handler object can provide handler traps (`get`, `has`, `set`, `delete`, `apply`,
+A handler object can provide handler traps (`get`, `has`, `set`, `delete`, `applyFunction`,
 `applyMethod`) and their associated `*SendOnly` traps.
 
 ```ts
-{
-  get                (target, prop):        Promise<result>,
-  getSendOnly        (target, prop):        void,
-  has                (target, prop):        Promise<boolean>,
-  hasSendOnly        (target, prop):        void,
-  set                (target, prop, value): Promise<boolean>,
-  setSendOnly        (target, prop, value): void,
-  delete             (target, prop):        Promise<boolean>,
-  deleteSendOnly     (target, prop):        void,
-  apply              (target, args):        Promise<result>,
-  applySendOnly      (target, args):        void,
-  applyMethod        (target, prop, args):  Promise<result>,
-  applyMethodSendOnly(target, prop, args):  void,
-}
+({
+  get                   (target, prop):        Promise<result>,
+  getSendOnly           (target, prop):        void,
+  has                   (target, prop):        Promise<boolean>,
+  hasSendOnly           (target, prop):        void,
+  set                   (target, prop, value): Promise<boolean>,
+  setSendOnly           (target, prop, value): void,
+  delete                (target, prop):        Promise<boolean>,
+  deleteSendOnly        (target, prop):        void,
+  applyFunction         (target, args):        Promise<result>,
+  applyFunctionSendOnly (target, args):        void,
+  applyMethod           (target, prop, args):  Promise<result>,
+  applyMethodSendOnly   (target, prop, args):  void,
+})
 ```
 
 If the handler does not provide a `*SendOnly` trap, its default implementation
@@ -300,7 +300,7 @@ returns a promise rejection.  The only exception to that behaviour is if the
 handler does not provide the `applyMethod` optimization trap.  Then, its
 default implementation is
 ```js
-HandledPromise.apply(HandledPromise.get(p, prop), args)
+HandledPromise.applyFunction(HandledPromise.get(p, prop), args)
 ```
 
 This expansion requires that the promise for the remote method be unnecessarily
@@ -342,8 +342,8 @@ HandledPromise.deleteSendOnly(target, prop); // undefined
 ```
 
 ```js
-HandledPromise.apply(target, [args]); // Promise<result>
-HandledPromise.applySendOnly(target, [args]); // undefined
+HandledPromise.applyFunction(target, [args]); // Promise<result>
+HandledPromise.applyFunctionSendOnly(target, [args]); // undefined
 ```
 
 The `applyMethod` call combines property lookup with function application in
