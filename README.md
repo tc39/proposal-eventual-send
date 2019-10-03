@@ -235,6 +235,7 @@ new Promise((resolve, reject) => {...}
 resolve(resolution) -> void
 reject(reason) -> void
 
+
 new HandledPromise((resolve, reject, resolveWithPresence) => {...},
                    unfulfilledHandler)
                   ) -> handled promise
