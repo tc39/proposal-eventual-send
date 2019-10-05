@@ -1,7 +1,15 @@
-# Eventual-Send: Support for distributed promise pipelining
-By Mark S. Miller (@erights), Chip Morningstar (@FUDCo), and Michael FIG (@michaelfig)
+# proposal-eventual-send
 
-**ECMAScript Eventual-Send: Support for distributed promise pipelining**
+## `HandledPromise` API support for distributed promise pipelining
+
+by Mark S. Miller (@erights), Chip Morningstar (@FUDCo), and Michael FIG (@michaelfig)
+
+## Status
+
+Presented to TC39 (Javascript standards committee), achieving stage 1.
+
+[<img src="evsend-miniplayer.png" alt="Presentation to TC39" width="40%">](https://www.youtube.com/watch?v=UXR0O-CufTk&list=PLzDw4TTug5O0ywHrOz4VevVTYr6Kj_KtW)
+
 
 ## Background
 
