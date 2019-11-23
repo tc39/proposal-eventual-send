@@ -30,7 +30,9 @@ the result to eventually become available, the system can instead immediately
 return another object - a promise - that can stand in for the result in the
 meantime.  Since, as was just said, an object is something you send messages
 to, a promise is, in that respect, potentially as good as the object it is a
-promise for -- you simply send it messages as if it was the actual result.  The
+promise for -- you simply send it messages as if it was the actual result.
+
+The
 promise can't perform the invoked operation directly, since what that means is
 not yet known, but it *can* enqueue the request for later processing or relay
 it to the other end of a network connection where the result will eventually be
@@ -123,9 +125,6 @@ promises. The static methods below are static methods of this constructor.
 | Internal Method | Static Method |
 | --- | --- |
 | `p.[[GetSend]](prop)`              | `get(p, prop)` |
-| `p.[[HasSend]](prop)`              | `has(p, prop)` |
-| `p.[[SetSend]](prop, value)`       | `set(p, prop, value)` |
-| `p.[[DeleteSend]](prop)`           | `delete(p, prop)` |
 | `p.[[ApplyFunctionSend]](args)`    | `applyFunction(p, args)` |
 | `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
 
@@ -147,9 +146,6 @@ or, for handled promises, the behavior that calls the associated handler trap.
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
 | `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
-| `has(p, prop)` | `p.then(t => prop in t)` | `h.has(t, prop)` |
-| `set(p, prop, value)` | `p.then(t => (t[prop] = value))` | `h.set(t, prop, value)` |
-| `delete(p, prop)` | `p.then(t => delete t[prop])` | `h.delete(t, prop)` |
 | `applyFunction(p, args)` | `p.then(t => t(...args))` | `h.applyFunction(t, args)` |
 | `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
 
@@ -171,18 +167,12 @@ introduce the "SendOnly" variants of these methods.
 | Internal Method | Static Method |
 | --- | --- |
 | `p.[[GetSendOnly]](prop)`              | `getSendOnly(p, prop)` |
-| `p.[[HasSendOnly]](prop)`              | `hasSendOnly(p, prop)` |
-| `p.[[SetSendOnly]](prop, value)`       | `setSendOnly(p, prop, value)` |
-| `p.[[DeleteSendOnly]](prop)`           | `deleteSendOnly(p, prop)` |
 | `p.[[ApplyFunctionSendOnly]](args)`    | `applyFunctionSendOnly(p, args)` |
 | `p.[[ApplyMethodSendOnly]](prop, args)`| `applyMethodSendOnly(p, prop, args)` |
 
 | Static Method | Handler trap |
 | --- | --- |
 | `getSendOnly(p, prop)`               | `h.getSendOnly(t, prop)` |
-| `hasSendOnly(p, prop)`               | `h.hasSendOnly(t, prop)` |
-| `setSendOnly(p, prop, value)`        | `h.setSendOnly(t, prop, value)` |
-| `deleteSendOnly(p, prop)`            | `h.deleteSendOnly(t, prop)` |
 | `applyFunctionSendOnly(p, args)`     | `h.applyFunctionSendOnly(t, args)` |
 | `applyMethodSendOnly(p, prop, args)` | `h.applyMethodSendOnly(t, prop, args)` |
 
@@ -303,19 +293,13 @@ promise cannot sense whether it holds a handled or an unhandled promise.
 
 ### Handler traps
 
-A handler object can provide handler traps (`get`, `has`, `set`, `delete`, `applyFunction`,
+A handler object can provide handler traps (`get`, `applyFunction`,
 `applyMethod`) and their associated `*SendOnly` traps.
 
 ```ts
 ({
   get                   (target, prop):        Promise<result>,
   getSendOnly           (target, prop):        void,
-  has                   (target, prop):        Promise<boolean>,
-  hasSendOnly           (target, prop):        void,
-  set                   (target, prop, value): Promise<boolean>,
-  setSendOnly           (target, prop, value): void,
-  delete                (target, prop):        Promise<boolean>,
-  deleteSendOnly        (target, prop):        void,
   applyFunction         (target, args):        Promise<result>,
   applyFunctionSendOnly (target, args):        void,
   applyMethod           (target, prop, args):  Promise<result>,
@@ -355,21 +339,6 @@ destination is known (i.e. after the handled promise is resolved).
 ```js
 HandledPromise.get(target, prop); // Promise<result>
 HandledPromise.getSendOnly(target, prop); // undefined
-```
-
-```js
-HandledPromise.has(target, prop); // Promise<result>
-HandledPromise.hasSendOnly(target, prop); // undefined
-```
-
-```js
-HandledPromise.set(target, prop, value); // Promise<boolean>
-HandledPromise.setSendOnly(target, prop value); // undefined
-```
-
-```js
-HandledPromise.delete(target, prop); // Promise<boolean>
-HandledPromise.deleteSendOnly(target, prop); // undefined
 ```
 
 ```js
