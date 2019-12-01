@@ -230,18 +230,23 @@ In a manner analogous to *Proxy* handlers, a **handled promise** is associated
 with a handler object.
 
 ```js
-new Promise((resolve, reject) => {...}
-           ) -> unhandled promise
+new Proxy(target, handler) -> fresh proxy
+
+new Promise((resolve, reject) => {
+  ...
   resolve(resolution) -> void
   reject(reason) -> void
+  ...
+}) -> fresh unhandled promise
 
 
-new HandledPromise((resolve, reject, resolveWithPresence) => {...},
-                   unfulfilledHandler)
-                  ) -> handled promise
+new HandledPromise((resolve, reject, resolveWithPresence) => {
+  ...
   resolve(resolution) -> void
   reject(reason) -> void
   resolveWithPresence(presenceHandler) -> fresh presence
+  ...
+}, unfulfilledHandler) -> fresh handled promise
 ```
 
 For example,
