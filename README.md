@@ -1,4 +1,4 @@
-# proposal-eventual-send
+git@github.com:Agoric/proposal-preserve-virtualizability.git# proposal-eventual-send
 
 ## `HandledPromise` API support for distributed promise pipelining
 
@@ -107,13 +107,13 @@ proposing a particular implementation of remote messaging.
 To specify eventual-send operations and handled promises, we follow the pattern
 used to incorporate proxies into JavaScript:  That pattern specified...
 
-   * internal methods that all objects must support.
-   * static `Reflect` methods for invoking these internal methods.
-   * invariants that these methods must uphold.
-   * default behaviors of these methods for normal (non-exotic) objects.
-   * how proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
-   * the remaining behavior in the proxy methods to guarantee that these invariants are upheld despite arbitrary behavior by the handler.
-   * fallback behaviors for absent traps, implemented in terms of the remaining traps.
+   * ***internal methods*** that all objects must support.
+   * ***static methods*** on `Reflect` for invoking these internal methods.
+   * ***invariants*** that these methods must uphold.
+   * ***default behaviors*** of these methods for normal (non-exotic) objects.
+   * ***handler traps**. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
+   * ***proxy invariant enforcement***. The remaining behavior in the proxy methods to guarantee that these invariants are upheld despite arbitrary behavior by the handler.
+   * ***fallback behaviors*** for absent traps, implemented in terms of the remaining traps.
 
 Following this analogy, this proposal adds internal eventual-send methods
 to all promises, provides default behaviors for unhandled promises, and
@@ -128,7 +128,7 @@ promises. The static methods below are static methods of this constructor.
 | `p.[[ApplyFunctionSend]](args)`    | `applyFunction(p, args)` |
 | `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
 
-The static methods first do the equivalent of `Promise.resolve` on their first
+The static methods first do the equivalent of `HandledPromise.resolve` on their first
 argument, to coerce it to a promise with these internal methods.  Thus, for
 example,
 
@@ -137,7 +137,7 @@ HandledPromise.get(p, prop)
 ```
 actual does the equivalent of
 ```
-Promise.resolve(p).[[GetSend]](prop)
+HandledPromise.resolve(p).[[GetSend]](prop)
 ```
 
 Via the internal methods, the static methods cause either the default behavior,
@@ -232,16 +232,16 @@ with a handler object.
 ```js
 new Promise((resolve, reject) => {...}
            ) -> unhandled promise
-resolve(resolution) -> void
-reject(reason) -> void
+  resolve(resolution) -> void
+  reject(reason) -> void
 
 
 new HandledPromise((resolve, reject, resolveWithPresence) => {...},
                    unfulfilledHandler)
                   ) -> handled promise
-resolve(resolution) -> void
-reject(reason) -> void
-resolveWithPresence(presenceHandler) -> fresh presence
+  resolve(resolution) -> void
+  reject(reason) -> void
+  resolveWithPresence(presenceHandler) -> fresh presence
 ```
 
 For example,
@@ -287,8 +287,7 @@ which implements the communication mechanism.
 
 Although `HandledPromise` is class-like, it is not intended to act like a class
 distinct from `Promise`.  The initial value of `HandledPromise.prototype` is
-the same as the initial value of `Promise.prototype`.  Code that holds a
-promise cannot sense whether it holds a handled or an unhandled promise.
+the same as the initial value of `Promise.prototype`.  The initial value of `HandledPromise.prototype.constructor` remains `Promise`.  Code that holds a promise cannot sense whether it holds a handled or an unhandled promise.
 
 
 ### Handler traps
@@ -391,8 +390,30 @@ proposes a more convenient syntax for calling the new internal methods proposed
 here.  However, the eventual-send API described here is valuable even without
 the wavy dot syntax.
 
-## TODO
+## Completing the Proxy Analogy
 
-* Explain why we're choosing to modify Promise instead of using proxies.
-
-* Explain how promise pipelining isn't just a fluent interface
+   * ***internal methods*** that all promises must support
+      * [[GetSend]], [[GetSendOnly]],
+      * [[ApplyFunctionSend]], [[ApplyFunctionSendOnly]],
+      * [[ApplyMethodSend]], [[ApplyMethodSendOnly]]
+   * ***static methods*** on `HandledPromise` for invoking these internal methods.
+      * `HandledPromise.get`, `HandledPromise.getSendOnly`,
+      * `HandledPromise.applyFunction`, `HandledPromise.applyFunctionSendOnly`,
+      * `HandledPromise.applyMethod`, `HandledPromise.applyMethodSendOnly`
+   * ***invariants*** that these methods must uphold.
+      * Safety from reentrancy.
+      * `p === *Promise.resolve(t)` vs `p.then(t => ...)`
+   * ***default behaviors*** of these methods for unhandled promises to normal objects.
+      * `p~.foo` ==> `p.then(t => t.foo)`
+      * `p~.(x)` ==> `p.then(t => t(x))`
+      * `p~.foo(x)` ==> `p.then(t => t.foo(x))`
+   * ***handler traps**. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
+      * `p~.foo` ==> `p.then(t => h.get(t, 'foo'))`
+      * `p~.(x)` ==> `p.then(t => h.applyFunction(t, [x])`
+      * `p~.foo(x)` ==> `p.then(t => h.applyMethod(t, 'foo', [x])`
+   * ***promise invariant enforcement***.
+      * The `p.then` pattern above
+   * ***fallback behaviors*** for absent traps, implemented in terms of the remaining traps.
+      * `*SendOnly(...)` defaults to `void *Send(...)`
+      * `h.applyMethod(t, 'foo', [x])` defaults to
+        `h.applyFunction(t, h.get(t, 'foo'), [x])`
