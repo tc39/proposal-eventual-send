@@ -407,7 +407,7 @@ the wavy dot syntax.
       * `p~.foo` ==> `p.then(t => t.foo)`
       * `p~.(x)` ==> `p.then(t => t(x))`
       * `p~.foo(x)` ==> `p.then(t => t.foo(x))`
-   * ***handler traps**. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
+   * ***handler traps***. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
       * `p~.foo` ==> `p.then(t => h.get(t, 'foo'))`
       * `p~.(x)` ==> `p.then(t => h.applyFunction(t, [x])`
       * `p~.foo(x)` ==> `p.then(t => h.applyMethod(t, 'foo', [x])`
