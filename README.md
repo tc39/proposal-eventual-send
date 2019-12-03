@@ -1,8 +1,10 @@
-git@github.com:Agoric/proposal-preserve-virtualizability.git# proposal-eventual-send
+## `HandledPromise`
 
-## `HandledPromise` API support for distributed promise pipelining
+*API support for distributed promise pipelining.*
 
-by Mark S. Miller (@erights), Chip Morningstar (@FUDCo), and Michael FIG (@michaelfig)
+   * Mark S. Miller @erights, Agoric
+   * Michael Fig @michaelfig, Agoric
+   * Chip Morningstar @FUDCo, Evernote
 
 ## Status
 
