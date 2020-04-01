@@ -3,7 +3,7 @@
 *API support for distributed promise pipelining.*
 
    * Mark S. Miller @erights, Agoric
-   * Michael Fig @michaelfig, Agoric
+   * Michael FIG @michaelfig, Agoric
    * Chip Morningstar @FUDCo, Evernote
 
 ## Status
@@ -242,11 +242,11 @@ new Promise((resolve, reject) => {
 }) -> fresh unhandled promise
 
 
-new HandledPromise((resolve, reject, resolveWithPresence) => {
+new HandledPromise((resolve, reject, resolveWithRemote) => {
   ...
   resolve(resolution) -> void
   reject(reason) -> void
-  resolveWithPresence(presenceHandler) -> fresh presence
+  resolveWithRemote(remoteHandler) -> fresh remote
   ...
 }, unfulfilledHandler) -> fresh handled promise
 ```
@@ -256,15 +256,15 @@ For example,
 ```js
 import { HandledPromise } from 'js:eventual-send';
 
-const executor = async (resolve, reject, resolveWithPresence) => {
+const executor = async (resolve, reject, resolveWithRemote) => {
   // Do something that may need a delay to complete.
-  const { err, presenceHandler, other } = await determineResolution();
-  if (presenceHandler) {
-    // presence is a freshly-created Object.create(null) whose handler
-    // is presenceHandler.  The targetP below will be resolved to this
-    // presence.
-    const presence = resolveWithPresence(presenceHandler);
-    presence.toString = () => 'My Special Presence';
+  const { err, remoteHandler, other } = await determineResolution();
+  if (remoteHandler) {
+    // remote is a freshly-created Object.create(null) whose handler
+    // is remoteHandler.  The targetP below will be resolved to this
+    // remote.
+    const remote = resolveWithRemote(remoteHandler);
+    remote.toString = () => 'My Special Remote';
   } else if (err) {
     // Reject targetP with err.
     reject(err);
