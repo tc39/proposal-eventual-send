@@ -1,4 +1,4 @@
-## `HandledPromise`
+## `Promise.delegate`
 
 *API support for distributed promise pipelining.*
 
@@ -8,7 +8,9 @@
 
 ## Status
 
-Presented to TC39 (Javascript standards committee), achieving stage 1.
+Presented to TC39 (Javascript standards committee), achieving stage 1.  (Note that the actual
+API has been changed since this talk, to using `Promise.delegate` and other `Promise` static methods
+instead of a new `HandledPromise` global.)
 
 [<img src="evsend-miniplayer.png" alt="Presentation to TC39" width="40%">](https://www.youtube.com/watch?v=UXR0O-CufTk&list=PLzDw4TTug5O0ywHrOz4VevVTYr6Kj_KtW)
 
@@ -85,7 +87,7 @@ this approach to distributed computing works well at scale.
 
 This proposal adds *eventual-send* operations to JavaScript Promises, to
 express invocation of operations on potentially remote objects.  We introduce
-the notion of a *handled Promise*, whose handler can provide alternate
+the notion of a *delegated Promise*, whose handler can provide alternate
 eventual-send behavior.  These mechanisms, together with weak references,
 enable the creation of remote object communications systems, but without
 committing to any specific implementation.  In particular, this proposal
@@ -106,7 +108,7 @@ proposing a particular implementation of remote messaging.
 
 ## Details
 
-To specify eventual-send operations and handled promises, we follow the pattern
+To specify eventual-send operations and delegated promises, we follow the pattern
 used to incorporate proxies into JavaScript:  That pattern specified...
 
    * ***internal methods*** that all objects must support.
@@ -118,10 +120,10 @@ used to incorporate proxies into JavaScript:  That pattern specified...
    * ***fallback behaviors*** for absent traps, implemented in terms of the remaining traps.
 
 Following this analogy, this proposal adds internal eventual-send methods
-to all promises, provides default behaviors for unhandled promises, and
-introduces handled promises whose handlers provide traps for these methods.
+to all promises, provides default behaviors for undelegated promises, and
+introduces delegated promises whose handlers provide traps for these methods.
 
-A new constructor, `HandledPromise`, enables the creation of handled
+A new static method, `Promise.delegate`, enables the creation of delegated
 promises. The static methods below are static methods of this constructor.
 
 | Internal Method | Static Method |
@@ -130,20 +132,20 @@ promises. The static methods below are static methods of this constructor.
 | `p.[[ApplyFunctionSend]](args)`    | `applyFunction(p, args)` |
 | `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
 
-The static methods first do the equivalent of `HandledPromise.resolve` on their first
+The static methods first do a `Promise.resolve` on their first
 argument, to coerce it to a promise with these internal methods.  Thus, for
 example,
 
 ```js
-HandledPromise.get(p, prop)
+Promise.get(p, prop)
 ```
 actual does the equivalent of
 ```
-HandledPromise.resolve(p).[[GetSend]](prop)
+Promise.resolve(p).[[GetSend]](prop)
 ```
 
 Via the internal methods, the static methods cause either the default behavior,
-or, for handled promises, the behavior that calls the associated handler trap.
+or, for delegated promises, the behavior that calls the associated handler trap.
 
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
@@ -154,7 +156,7 @@ or, for handled promises, the behavior that calls the associated handler trap.
 To protect against reentrancy, the proxy internal method postpones the
 execution of the handler trap to a later turn, and immediately returns a
 promise for what the trap will return.  For example, the [[GetSend]] internal
-method of a handled promise is effectively
+method of a delegated promise is effectively
 
 ```js
 p.then(t => h.get(t, prop))
@@ -197,7 +199,7 @@ void p.then(t => h.get(t, prop))
 Probably the most common distributed programming case, invocation of remote
 methods with or without requiring return results, can be implemented by
 powerless proxies.  All authority needed to enable communication between the
-peers can be implemented in the handled promise infrastructure.
+peers can be implemented in the delegated promise infrastructure.
 
 The `E(target)` proxy maker wraps a remote target and allows for a single
 remote method call returning a promise for the result.
@@ -226,9 +228,9 @@ E(fileP).read().then(contents => {
 });
 ```
 
-### `HandledPromise` constructor
+### `Promise.delegate` static method
 
-In a manner analogous to *Proxy* handlers, a **handled promise** is associated
+In a manner analogous to *Proxy* handlers, a **delegated promise** is associated
 with a handler object.
 
 ```js
@@ -239,32 +241,30 @@ new Promise((resolve, reject) => {
   resolve(resolution) -> void
   reject(reason) -> void
   ...
-}) -> fresh unhandled promise
+}) -> fresh undelegated promise
 
 
-new HandledPromise((resolve, reject, resolveWithRemote) => {
+Promise.delegate((resolve, reject, resolveWithPresence) => {
   ...
   resolve(resolution) -> void
   reject(reason) -> void
-  resolveWithRemote(remoteHandler) -> fresh remote
+  resolveWithPresence(handler) -> fresh presence
   ...
-}, unfulfilledHandler) -> fresh handled promise
+}, unfulfilledHandler) -> fresh delegated promise
 ```
 
 For example,
 
 ```js
-import { HandledPromise } from 'js:eventual-send';
-
-const executor = async (resolve, reject, resolveWithRemote) => {
+const executor = async (resolve, reject, resolveWithPresence) => {
   // Do something that may need a delay to complete.
-  const { err, remoteHandler, other } = await determineResolution();
-  if (remoteHandler) {
-    // remote is a freshly-created Object.create(null) whose handler
-    // is remoteHandler.  The targetP below will be resolved to this
-    // remote.
-    const remote = resolveWithRemote(remoteHandler);
-    remote.toString = () => 'My Special Remote';
+  const { err, handler, other } = await determineResolution();
+  if (handler) {
+    // presence is a freshly-created Object.create(null) whose handler
+    // is handler.  The targetP below will be resolved to this
+    // presence.
+    const presence = resolveWithPresence(handler);
+    presence.toString = () => 'My Special Presence';
   } else if (err) {
     // Reject targetP with err.
     reject(err);
@@ -274,27 +274,27 @@ const executor = async (resolve, reject, resolveWithRemote) => {
   }
 };
 
-// Create a handled promise with initial handler.
+// Create a delegted promise with initial handler.
 // If unfulfilledHandler is not specified (i.e. undefined), it will use
 // a builtin queueing handler until targetP is resolved/rejected.
 //
 // This default queueing handler would cause too much latency if the
-// handled promise actually triggers network traffic.  An actual
+// delegated promise actually triggers network traffic.  An actual
 // unfulfilledHandler could speculatively send traffic to remote hosts.
-const targetP = new HandledPromise(executor, unfulfilledHandler);
+const targetP = Promise.delegate(executor, unfulfilledHandler);
 E(E(targetP).remoteMethod(someArg, someArg2)).callOnResult(...otherArgs);
 ```
 
-The handlers are not exposed to the user of the handled promise, so it provides
+The handlers are not exposed to the user of the delegated promise, so it provides
 a secure separation between the unprivileged client (which uses the `E`,
-`E.sendOnly` or static `HandledPromise` methods) and the privileged system
+`E.sendOnly` or static `Promise` methods) and the privileged system
 which implements the communication mechanism.
 
-### `HandledPromise.prototype`
+### `Promise.prototype`
 
-Although `HandledPromise` is class-like, it is not intended to act like a class
-distinct from `Promise`.  The initial value of `HandledPromise.prototype` is
-the same as the initial value of `Promise.prototype`.  The initial value of `HandledPromise.prototype.constructor` remains `Promise`.  Code that holds a promise cannot sense whether it holds a handled or an unhandled promise.
+Since delegated promises are still Promises, they can be used anyplace a
+Promise can.  However, with the additional semantics of `Promise.resolve`,
+it is possible to detect if an object is a presence.
 
 
 ### Handler traps
@@ -321,35 +321,35 @@ returns a promise rejection.  The only exception to that behaviour is if the
 handler does not provide the `applyMethod` optimization trap.  Then, its
 default implementation is
 ```js
-HandledPromise.applyFunction(HandledPromise.get(p, prop), args)
+Promise.applyFunction(Promise.get(p, prop), args)
 ```
 
 This expansion requires that the promise for the remote method be unnecessarily
 reified.
 
 For an unfulfilled handler, the trap's `target` argument is the unfulfilled
-handled promise, so that it can gain control before the promise is resolved.
+delegated promise, so that it can gain control before the promise is resolved.
 For a fulfilled handler, the method's `target` argument is the result of the
 fulfillment, since it is available.
 
-### `HandledPromise` static methods
+### `Promise` static methods
 
 The methods in this section are used to implement higher-level communication
 primitives, such as the `E` proxy maker.
 
 These methods are analogous to the `Reflect` API, but asynchronously invoke a
-handled promise's handler regardless of whether the target has resolved.  This
+delegated promise's handler regardless of whether the target has resolved.  This
 is necessary in order to allow pipelining of messages before the exact
-destination is known (i.e. after the handled promise is resolved).
+destination is known (i.e. after the delegated promise is resolved).
 
 ```js
-HandledPromise.get(target, prop); // Promise<result>
-HandledPromise.getSendOnly(target, prop); // undefined
+Promise.get(target, prop); // Promise<result>
+Promise.getSendOnly(target, prop); // undefined
 ```
 
 ```js
-HandledPromise.applyFunction(target, [args]); // Promise<result>
-HandledPromise.applyFunctionSendOnly(target, [args]); // undefined
+Promise.applyFunction(target, [...args]); // Promise<result>
+Promise.applyFunctionSendOnly(target, [...args]); // undefined
 ```
 
 The `applyMethod` call combines property lookup with function application in
@@ -357,8 +357,8 @@ order to distinguish them from a `get` whose value is separately inspected, and
 for the handler to be able to bundle the two operations as a single message.
 
 ```js
-HandledPromise.applyMethod(target, prop, args); // Promise<result>
-HandledPromise.applyMethodSendOnly(target, prop, args); // undefined
+Promise.applyMethod(target, prop, args); // Promise<result>
+Promise.applyMethodSendOnly(target, prop, args); // undefined
 ```
 
 ## Platform Support
@@ -375,8 +375,8 @@ let pr;
 const p = new Promise(r => pr = r);
 E(p).foo();
 let qr;
-const q = new HandledPromise(r => qr = r,
-                             unfulfilledHandler);
+const q = Promise.delegate(r => qr = r,
+                           unfulfilledHandler);
 pr.resolve(q);
 ```
 
@@ -384,8 +384,8 @@ After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded
 to `q` and trap to `q`'s `unfulfilledHandler`.  Although a shim could monkey
 patch the `Promise` constructor to provide an altered `resolve` function which
 does that, there are plenty of internal resolution steps that would bypass it.
-There is no way for a shim to detect that unfulfilled unhandled promise `p` has
-been resolved to unfulfilled handled `q` by one of these.  Instead, the `foo`
+There is no way for a shim to detect that unfulfilled undelegated promise `p` has
+been resolved to unfulfilled delegated `q` by one of these.  Instead, the `foo`
 invocation will languish until a round trip fulfills `q`, thus
    * losing the benefits of promise pipelining,
    * arriving after messages that should have arrived after it.
@@ -403,14 +403,14 @@ the wavy dot syntax.
       * [[GetSend]], [[GetSendOnly]],
       * [[ApplyFunctionSend]], [[ApplyFunctionSendOnly]],
       * [[ApplyMethodSend]], [[ApplyMethodSendOnly]]
-   * ***static methods*** on `HandledPromise` for invoking these internal methods.
-      * `HandledPromise.get`, `HandledPromise.getSendOnly`,
-      * `HandledPromise.applyFunction`, `HandledPromise.applyFunctionSendOnly`,
-      * `HandledPromise.applyMethod`, `HandledPromise.applyMethodSendOnly`
+   * ***static methods*** on `Promise` for invoking these internal methods.
+      * `Promise.get`, `Promise.getSendOnly`,
+      * `Promise.applyFunction`, `Promise.applyFunctionSendOnly`,
+      * `Promise.applyMethod`, `Promise.applyMethodSendOnly`
    * ***invariants*** that these methods must uphold.
       * Safety from reentrancy.
       * `p === *Promise.resolve(t)` vs `p.then(t => ...)`
-   * ***default behaviors*** of these methods for unhandled promises to normal objects.
+   * ***default behaviors*** of these methods for undelegated promises to normal objects.
       * `p~.foo` ==> `p.then(t => t.foo)`
       * `p~.(x)` ==> `p.then(t => t(x))`
       * `p~.foo(x)` ==> `p.then(t => t.foo(x))`
