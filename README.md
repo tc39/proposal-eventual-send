@@ -139,7 +139,7 @@ example,
 ```js
 Promise.get(p, prop)
 ```
-actual does the equivalent of
+actually does the equivalent of
 ```
 Promise.resolve(p).[[GetSend]](prop)
 ```
@@ -201,8 +201,8 @@ methods with or without requiring return results, can be implemented by
 powerless proxies.  All authority needed to enable communication between the
 peers can be implemented in the delegated promise infrastructure.
 
-The `E(target)` proxy maker wraps a remote target and allows for a single
-remote method call returning a promise for the result.
+The `E(target)` proxy maker wraps a target (which may or may not be remote) and
+allows for a single remote method call returning a promise for the result.
 
 ```js
 E(target).method(arg1, arg2...) // Promise<result>
@@ -248,7 +248,7 @@ Promise.delegate((resolve, reject, resolveWithPresence) => {
   ...
   resolve(resolution) -> void
   reject(reason) -> void
-  resolveWithPresence(handler) -> fresh presence
+  resolveWithPresence(presenceHandler) -> fresh presence
   ...
 }, unfulfilledHandler) -> fresh delegated promise
 ```
@@ -258,12 +258,12 @@ For example,
 ```js
 const executor = async (resolve, reject, resolveWithPresence) => {
   // Do something that may need a delay to complete.
-  const { err, handler, other } = await determineResolution();
-  if (handler) {
+  const { err, presenceHandler, other } = await determineResolution();
+  if (presenceHandler) {
     // presence is a freshly-created Object.create(null) whose handler
-    // is handler.  The targetP below will be resolved to this
+    // is presenceHandler.  The targetP below will be resolved to this
     // presence.
-    const presence = resolveWithPresence(handler);
+    const presence = resolveWithPresence(presenceHandler);
     presence.toString = () => 'My Special Presence';
   } else if (err) {
     // Reject targetP with err.
@@ -329,10 +329,10 @@ reified.
 
 For an unfulfilled handler, the trap's `target` argument is the unfulfilled
 delegated promise, so that it can gain control before the promise is resolved.
-For a fulfilled handler, the method's `target` argument is the result of the
-fulfillment, since it is available.
+For a presence handler, the trap's `target` argument is the presence that was
+created by `resolveWithPresence`.
 
-### `Promise` static methods
+### New `Promise` static methods
 
 The methods in this section are used to implement higher-level communication
 primitives, such as the `E` proxy maker.
@@ -340,7 +340,7 @@ primitives, such as the `E` proxy maker.
 These methods are analogous to the `Reflect` API, but asynchronously invoke a
 delegated promise's handler regardless of whether the target has resolved.  This
 is necessary in order to allow pipelining of messages before the exact
-destination is known (i.e. after the delegated promise is resolved).
+destination is known (i.e. before the delegated promise is resolved).
 
 ```js
 Promise.get(target, prop); // Promise<result>
