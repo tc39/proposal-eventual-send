@@ -318,10 +318,10 @@ is the non-send-only trap with a return value of `undefined` (not a promise).
 
 If the handler omits a non-only trap, invoking the associated operation
 returns a promise rejection.  The only exception to that behaviour is if the
-handler does not provide the `eventualApply` optimization trap.  Then, its
+handler does not provide the `eventualSend` optimization trap.  Then, its
 default implementation is
 ```js
-Promise.applyFunction(Promise.get(p, prop), args)
+Promise.eventualApply(Promise.eventualGet(p, prop), args)
 ```
 
 This expansion requires that the promise for the remote method be unnecessarily
