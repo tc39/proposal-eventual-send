@@ -128,20 +128,20 @@ promises. The static methods below are static methods of this constructor.
 
 | Internal Method | Static Method |
 | --- | --- |
-| `p.[[GetSend]](prop)`              | `get(p, prop)` |
-| `p.[[ApplyFunctionSend]](args)`    | `applyFunction(p, args)` |
-| `p.[[ApplyMethodSend]](prop, args)`| `applyMethod(p, prop, args)` |
+| `p.[[EventualGet]](prop)`              | `eventualGet(p, prop)` |
+| `p.[[EventualApply]](args)`    | `eventualApply(p, args)` |
+| `p.[[EventualSend]](prop, args)`| `eventualSend(p, prop, args)` |
 
 The static methods first do a `Promise.resolve` on their first
 argument, to coerce it to a promise with these internal methods.  Thus, for
 example,
 
 ```js
-Promise.get(p, prop)
+Promise.eventualGet(p, prop)
 ```
 actually does the equivalent of
 ```
-Promise.resolve(p).[[GetSend]](prop)
+Promise.resolve(p).[[EventualGet]](prop)
 ```
 
 Via the internal methods, the static methods cause either the default behavior,
@@ -149,17 +149,17 @@ or, for delegated promises, the behavior that calls the associated handler trap.
 
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
-| `get(p, prop)` | `p.then(t => t[prop])` | `h.get(t, prop)` |
-| `applyFunction(p, args)` | `p.then(t => t(...args))` | `h.applyFunction(t, args)` |
-| `applyMethod(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.applyMethod(t, prop, args)` |
+| `eventualGet(p, prop)` | `p.then(t => t[prop])` | `h.eventualGet(t, prop)` |
+| `eventualApply(p, args)` | `p.then(t => t(...args))` | `h.eventualApply(t, args)` |
+| `eventualSend(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.eventualSend(t, prop, args)` |
 
 To protect against reentrancy, the proxy internal method postpones the
 execution of the handler trap to a later turn, and immediately returns a
-promise for what the trap will return.  For example, the [[GetSend]] internal
+promise for what the trap will return.  For example, the [[EventualGet]] internal
 method of a delegated promise is effectively
 
 ```js
-p.then(t => h.get(t, prop))
+p.then(t => h.eventualGet(t, prop))
 ```
 
 Sometimes, these operations will be used to cause remote effects while ignoring
@@ -170,28 +170,28 @@ introduce the "SendOnly" variants of these methods.
 
 | Internal Method | Static Method |
 | --- | --- |
-| `p.[[GetSendOnly]](prop)`              | `getSendOnly(p, prop)` |
-| `p.[[ApplyFunctionSendOnly]](args)`    | `applyFunctionSendOnly(p, args)` |
-| `p.[[ApplyMethodSendOnly]](prop, args)`| `applyMethodSendOnly(p, prop, args)` |
+| `p.[[EventualGetOnly]](prop)`       | `eventualGetOnly(p, prop)` |
+| `p.[[EventualApplyOnly]](args)`     | `eventualApplyOnly(p, args)` |
+| `p.[[EventualSendOnly]](prop, args)`| `eventualSendOnly(p, prop, args)` |
 
 | Static Method | Handler trap |
 | --- | --- |
-| `getSendOnly(p, prop)`               | `h.getSendOnly(t, prop)` |
-| `applyFunctionSendOnly(p, args)`     | `h.applyFunctionSendOnly(t, args)` |
-| `applyMethodSendOnly(p, prop, args)` | `h.applyMethodSendOnly(t, prop, args)` |
+| `eventualGetOnly(p, prop)`        | `h.eventualGetOnly(t, prop)` |
+| `eventualApplyOnly(p, args)`      | `h.eventualApplyOnly(t, args)` |
+| `eventualSendOnly(p, prop, args)` | `h.eventualSendOnly(t, prop, args)` |
 
 
 
-No matter what a \*SendOnly handler trap returns, the proxy internal
-[[\*SendOnly]] method always immediately returns `undefined`.
+No matter what a \*Only handler trap returns, the proxy internal
+[[\*Only]] method always immediately returns `undefined`.
 
-When a "SendOnly" trap is absent, the trap behavior defaults to the
-corresponding non-SendOnly trap.  But again, the proxy internal [[\*SendOnly]]
+When an "Only" trap is absent, the trap behavior defaults to the
+corresponding non-Only trap.  But again, the proxy internal [[\*Only]]
 method always immediately returns `undefined`, and so is effectively, for
 example:
 
 ```js
-void p.then(t => h.get(t, prop))
+void p.then(t => h.eventualGet(t, prop))
 ```
 
 ### `E` and `E.sendOnly` convenience proxies
@@ -299,26 +299,26 @@ it is possible to detect if an object is a presence.
 
 ### Handler traps
 
-A handler object can provide handler traps (`get`, `applyFunction`,
-`applyMethod`) and their associated `*SendOnly` traps.
+A handler object can provide handler traps (`eventualGet`, `eventualApply`,
+`eventualSend`) and their associated `*Only` traps.
 
 ```ts
 ({
-  get                   (target, prop):        Promise<result>,
-  getSendOnly           (target, prop):        void,
-  applyFunction         (target, args):        Promise<result>,
-  applyFunctionSendOnly (target, args):        void,
-  applyMethod           (target, prop, args):  Promise<result>,
-  applyMethodSendOnly   (target, prop, args):  void,
+  eventualGet        (target, prop):        Promise<result>,
+  eventualGetOnly    (target, prop):        void,
+  eventualApply      (target, args):        Promise<result>,
+  eventualApplyOnly  (target, args):        void,
+  eventualSend       (target, prop, args):  Promise<result>,
+  eventualSendOnly   (target, prop, args):  void,
 })
 ```
 
-If the handler does not provide a `*SendOnly` trap, its default implementation
+If the handler does not provide a `*Only` trap, its default implementation
 is the non-send-only trap with a return value of `undefined` (not a promise).
 
-If the handler omits a non-send-only trap, invoking the associated operation
+If the handler omits a non-only trap, invoking the associated operation
 returns a promise rejection.  The only exception to that behaviour is if the
-handler does not provide the `applyMethod` optimization trap.  Then, its
+handler does not provide the `eventualApply` optimization trap.  Then, its
 default implementation is
 ```js
 Promise.applyFunction(Promise.get(p, prop), args)
@@ -343,22 +343,22 @@ is necessary in order to allow pipelining of messages before the exact
 destination is known (i.e. before the delegated promise is resolved).
 
 ```js
-Promise.get(target, prop); // Promise<result>
-Promise.getSendOnly(target, prop); // undefined
+Promise.eventualGet(target, prop); // Promise<result>
+Promise.eventualGetOnly(target, prop); // undefined
 ```
 
 ```js
-Promise.applyFunction(target, [...args]); // Promise<result>
-Promise.applyFunctionSendOnly(target, [...args]); // undefined
+Promise.eventualApply(target, [...args]); // Promise<result>
+Promise.eventualApplyOnly(target, [...args]); // undefined
 ```
 
-The `applyMethod` call combines property lookup with function application in
-order to distinguish them from a `get` whose value is separately inspected, and
+The `eventualSend` call combines property lookup with function application in
+order to distinguish them from an `eventualGet` whose value is separately inspected, and
 for the handler to be able to bundle the two operations as a single message.
 
 ```js
-Promise.applyMethod(target, prop, args); // Promise<result>
-Promise.applyMethodSendOnly(target, prop, args); // undefined
+Promise.eventualSend(target, prop, args); // Promise<result>
+Promise.eventualSendOnly(target, prop, args); // undefined
 ```
 
 ## Platform Support
@@ -400,27 +400,27 @@ the wavy dot syntax.
 ## Completing the Proxy Analogy
 
    * ***internal methods*** that all promises must support
-      * [[GetSend]], [[GetSendOnly]],
-      * [[ApplyFunctionSend]], [[ApplyFunctionSendOnly]],
-      * [[ApplyMethodSend]], [[ApplyMethodSendOnly]]
+      * [[EventualGet]], [[EventualGetOnly]],
+      * [[EventualApply]], [[EventualApplyOnly]],
+      * [[EventualSend]], [[EventualSendOnly]]
    * ***static methods*** on `Promise` for invoking these internal methods.
-      * `Promise.get`, `Promise.getSendOnly`,
-      * `Promise.applyFunction`, `Promise.applyFunctionSendOnly`,
-      * `Promise.applyMethod`, `Promise.applyMethodSendOnly`
+      * `Promise.eventualGet`, `Promise.eventualGetOnly`,
+      * `Promise.eventualApply`, `Promise.eventualApplyOnly`,
+      * `Promise.eventualSend`, `Promise.eventualSendOnly`
    * ***invariants*** that these methods must uphold.
       * Safety from reentrancy.
-      * `p === *Promise.resolve(t)` vs `p.then(t => ...)`
+      * `p === Promise.resolve(t)` vs `p.then(t => ...)`
    * ***default behaviors*** of these methods for undelegated promises to normal objects.
       * `p~.foo` ==> `p.then(t => t.foo)`
       * `p~.(x)` ==> `p.then(t => t(x))`
       * `p~.foo(x)` ==> `p.then(t => t.foo(x))`
    * ***handler traps***. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
-      * `p~.foo` ==> `p.then(t => h.get(t, 'foo'))`
-      * `p~.(x)` ==> `p.then(t => h.applyFunction(t, [x])`
-      * `p~.foo(x)` ==> `p.then(t => h.applyMethod(t, 'foo', [x])`
+      * `p~.foo` ==> `p.then(t => h.eventualGet(t, 'foo'))`
+      * `p~.(x)` ==> `p.then(t => h.eventualApply(t, [x])`
+      * `p~.foo(x)` ==> `p.then(t => h.eventualSend(t, 'foo', [x])`
    * ***promise invariant enforcement***.
       * The `p.then` pattern above
    * ***fallback behaviors*** for absent traps, implemented in terms of the remaining traps.
-      * `*SendOnly(...)` defaults to `void *Send(...)`
-      * `h.applyMethod(t, 'foo', [x])` defaults to
-        `h.applyFunction(t, h.get(t, 'foo'), [x])`
+      * `*Only(...)` defaults to `void *(...)`
+      * `h.eventualSend(t, 'foo', [x])` defaults to
+        `h.eventualApply(t, h.eventualGet(t, 'foo'), [x])`
