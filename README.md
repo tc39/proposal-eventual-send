@@ -25,7 +25,7 @@ network, though promises have since proven valuable for dealing with all manner
 of asynchronous delays in computational systems.
 
 The fundamental insight behind promises is this: in the classic presentation of
-object oriented programming, an object is something that you can send messages
+object-oriented programming, an object is something that you can send messages
 to in order to invoke operations on it.  If the result of such an operation is
 another object, that result in turn is something that you can send messages to.
 If the operation initiated by a message entails an asynchronous delay to get
@@ -40,7 +40,7 @@ The
 promise can't perform the invoked operation directly, since what that means is
 not yet known, but it *can* enqueue the request for later processing or relay
 it to the other end of a network connection where the result will eventually be
-known.  This deferall of operations through enqueuing or relaying can be
+known.  This deferral of operations through enqueuing or relaying can be
 pipelined an arbitrary number of operations deep; it is only at the point where
 there is a semantic requirement to actually see the result (such as the need to
 display it to a human) that the pipeline must stall to await the final outcome.
