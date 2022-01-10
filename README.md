@@ -1,4 +1,4 @@
-## `Promise.delegate`
+## `Promise.delegated`
 
 *API support for distributed promise pipelining.*
 
@@ -9,7 +9,7 @@
 ## Status
 
 Presented to TC39 (Javascript standards committee), achieving stage 1.  (Note that the actual
-API has been changed since this talk, to using `Promise.delegate` and other `Promise` static methods
+API has been changed since this talk, to using `Promise.delegated` and other `Promise` static methods
 instead of a new `HandledPromise` global.)
 
 [<img src="evsend-miniplayer.png" alt="Presentation to TC39" width="40%">](https://www.youtube.com/watch?v=UXR0O-CufTk&list=PLzDw4TTug5O0ywHrOz4VevVTYr6Kj_KtW)
@@ -85,12 +85,13 @@ this approach to distributed computing works well at scale.
 
 ## Summary
 
-This proposal adds *eventual-send* operations to JavaScript Promises, to
-express invocation of operations on potentially remote objects.  We introduce
-the notion of a *delegated Promise*, whose handler can provide alternate
-eventual-send behavior.  These mechanisms, together with weak references,
-enable the creation of remote object communications systems, but without
-committing to any specific implementation.  In particular, this proposal
+This proposal adds *eventual-send* operations to JavaScript Promises, to express
+invocation of operations on potentially remote objects.  We introduce the notion
+of a *delegated Promise*, which may have a handler to provide alternate
+eventual-send behavior.  We also introduce the concept of *Presences*, which may
+also have handlers, but are not promises.  These mechanisms, together with weak
+references, enable the creation of remote object communications systems, but
+without committing to any specific implementation.  In particular, this proposal
 specifies a general mechanism for hooking in whatever host-provided remote
 communications facilities are at hand, without constraining the nature of those
 facilities.
@@ -115,33 +116,34 @@ used to incorporate proxies into JavaScript:  That pattern specified...
    * ***static methods*** on `Reflect` for invoking these internal methods.
    * ***invariants*** that these methods must uphold.
    * ***default behaviors*** of these methods for normal (non-exotic) objects.
-   * ***handler traps**. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
+   * ***handler traps***. Proxies implement these methods by delegating most of their behaviors to corresponding traps on their handlers.
    * ***proxy invariant enforcement***. The remaining behavior in the proxy methods to guarantee that these invariants are upheld despite arbitrary behavior by the handler.
    * ***fallback behaviors*** for absent traps, implemented in terms of the remaining traps.
 
-Following this analogy, this proposal adds internal eventual-send methods
-to all promises, provides default behaviors for undelegated promises, and
-introduces delegated promises whose handlers provide traps for these methods.
+Following this analogy, this proposal adds internal eventual-send methods to all
+promises, provides default behaviors for undelegated promises, and introduces
+delegated promises whose handlers provide traps for these methods.
 
-A new static method, `Promise.delegate`, enables the creation of delegated
-promises. The static methods below are static methods of this constructor.
+A new static method, `Promise.delegated`, enables the creation of delegated
+promises. The static methods below are static methods of this maker, that is,
+`Promise.delegated.eventualGet`, etc:
 
 | Internal Method | Static Method |
 | --- | --- |
-| `p.[[EventualGet]](prop)`              | `eventualGet(p, prop)` |
-| `p.[[EventualApply]](args)`    | `eventualApply(p, args)` |
-| `p.[[EventualSend]](prop, args)`| `eventualSend(p, prop, args)` |
+| `p.[[EventualGet]](prop, opts)`       | `eventualGet(p, prop, opts = {})` |
+| `p.[[EventualApply]](args, opts)`     | `eventualApply(p, args, opts = {})` |
+| `p.[[EventualSend]](prop, args, opts)`| `eventualSend(p, prop, args, opts = {})` |
 
 The static methods first do a `Promise.resolve` on their first
 argument, to coerce it to a promise with these internal methods.  Thus, for
 example,
 
 ```js
-Promise.eventualGet(p, prop)
+Promise.delegated.eventualGet(p, prop)
 ```
 actually does the equivalent of
-```
-Promise.resolve(p).[[EventualGet]](prop)
+```js
+Promise.resolve(p).[[EventualGet]](prop, {})
 ```
 
 Via the internal methods, the static methods cause either the default behavior,
@@ -149,9 +151,9 @@ or, for delegated promises, the behavior that calls the associated handler trap.
 
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
-| `eventualGet(p, prop)` | `p.then(t => t[prop])` | `h.eventualGet(t, prop)` |
-| `eventualApply(p, args)` | `p.then(t => t(...args))` | `h.eventualApply(t, args)` |
-| `eventualSend(p, prop, args)` | `p.then(t => t[prop](...args))` | `h.eventualSend(t, prop, args)` |
+| `eventualGet(p, prop, opts)` | `p.then(t => t[prop])` | `h.eventualGet(t, prop, opts)` |
+| `eventualApply(p, args, opts)` | `p.then(t => t(...args))` | `h.eventualApply(t, args, opts)` |
+| `eventualSend(p, prop, args, opts)` | `p.then(t => t[prop](...args))` | `h.eventualSend(t, prop, args, opts)` |
 
 To protect against reentrancy, the proxy internal method postpones the
 execution of the handler trap to a later turn, and immediately returns a
@@ -159,42 +161,10 @@ promise for what the trap will return.  For example, the [[EventualGet]] interna
 method of a delegated promise is effectively
 
 ```js
-p.then(t => h.eventualGet(t, prop))
+p.then(t => h.eventualGet(t, prop, opts))
 ```
 
-Sometimes, these operations will be used to cause remote effects while ignoring
-the local promise for the result.  For distributed messaging protocols, the
-extra bookkeeping for these return results are sufficiently expensive that we
-should be able to avoid it when it is not needed.  To support this, we
-introduce the "SendOnly" variants of these methods.
-
-| Internal Method | Static Method |
-| --- | --- |
-| `p.[[EventualGetOnly]](prop)`       | `eventualGetOnly(p, prop)` |
-| `p.[[EventualApplyOnly]](args)`     | `eventualApplyOnly(p, args)` |
-| `p.[[EventualSendOnly]](prop, args)`| `eventualSendOnly(p, prop, args)` |
-
-| Static Method | Handler trap |
-| --- | --- |
-| `eventualGetOnly(p, prop)`        | `h.eventualGetOnly(t, prop)` |
-| `eventualApplyOnly(p, args)`      | `h.eventualApplyOnly(t, args)` |
-| `eventualSendOnly(p, prop, args)` | `h.eventualSendOnly(t, prop, args)` |
-
-
-
-No matter what a \*Only handler trap returns, the proxy internal
-[[\*Only]] method always immediately returns `undefined`.
-
-When an "Only" trap is absent, the trap behavior defaults to the
-corresponding non-Only trap.  But again, the proxy internal [[\*Only]]
-method always immediately returns `undefined`, and so is effectively, for
-example:
-
-```js
-void p.then(t => h.eventualGet(t, prop))
-```
-
-### `E` and `E.sendOnly` convenience proxies
+### `E` convenience proxy maker
 
 Probably the most common distributed programming case, invocation of remote
 methods with or without requiring return results, can be implemented by
@@ -208,13 +178,10 @@ allows for a single remote method call returning a promise for the result.
 E(target).method(arg1, arg2...) // Promise<result>
 ```
 
-`E.sendOnly(target)` is similar, but declares that we do not want the result
-(or even acknowledgement).  It always immediately returns `undefined`.
-
 Example usage:
 
 ```js
-import { E } from 'js:eventual-send';
+import { E } from '@agoric/far';
 
 // Invoke pipelined RPCs.
 const fileP = E(
@@ -224,11 +191,11 @@ const fileP = E(
 E(fileP).read().then(contents => {
   console.log('file contents', contents);
   // We don't use the result of this send.
-  E.sendOnly(fileP).append('fire-and-forget');
+  E(fileP, { oneway: true }).append('fire-and-forget');
 });
 ```
 
-### `Promise.delegate` static method
+### `Promise.delegated` function
 
 In a manner analogous to *Proxy* handlers, a **delegated promise** is associated
 with a handler object.
@@ -244,7 +211,7 @@ new Promise((resolve, reject) => {
 }) -> fresh undelegated promise
 
 
-Promise.delegate((resolve, reject, resolveWithPresence) => {
+Promise.delegated((resolve, reject, resolveWithPresence) => {
   ...
   resolve(resolution) -> void
   reject(reason) -> void
@@ -256,15 +223,17 @@ Promise.delegate((resolve, reject, resolveWithPresence) => {
 For example,
 
 ```js
-const executor = async (resolve, reject, resolveWithPresence) => {
+const delegatedExecutor = async (resolve, reject, resolveWithPresence) => {
   // Do something that may need a delay to complete.
   const { err, presenceHandler, other } = await determineResolution();
   if (presenceHandler) {
-    // presence is a freshly-created Object.create(null) whose handler
+    // presence is marked as an identity whose handler
     // is presenceHandler.  The targetP below will be resolved to this
     // presence.
-    const presence = resolveWithPresence(presenceHandler);
-    presence.toString = () => 'My Special Presence';
+    const presence = {
+      toString: () => 'My Special Presence',
+    };
+    resolveWithPresence(presenceHandler);
   } else if (err) {
     // Reject targetP with err.
     reject(err);
@@ -274,20 +243,15 @@ const executor = async (resolve, reject, resolveWithPresence) => {
   }
 };
 
-// Create a delegted promise with initial handler.
-// If unfulfilledHandler is not specified (i.e. undefined), it will use
-// a builtin queueing handler until targetP is resolved/rejected.
-//
-// This default queueing handler would cause too much latency if the
-// delegated promise actually triggers network traffic.  An actual
-// unfulfilledHandler could speculatively send traffic to remote hosts.
-const targetP = Promise.delegate(executor, unfulfilledHandler);
+// Create a delegated promise with an initial handler.
+// A pendingHandler could speculatively send traffic to remote hosts.
+const targetP = new Promise.delegated(delegatedExecutor, pendingHandler);
 E(E(targetP).remoteMethod(someArg, someArg2)).callOnResult(...otherArgs);
 ```
 
-The handlers are not exposed to the user of the delegated promise, so it provides
-a secure separation between the unprivileged client (which uses the `E`,
-`E.sendOnly` or static `Promise` methods) and the privileged system
+The handlers are not exposed to the user of the delegated promise, so it
+provides a secure separation between the unprivileged client (which uses the `E`
+proxy maker or static `Promise.delegated` methods) and the privileged system
 which implements the communication mechanism.
 
 ### `Promise.prototype`
@@ -300,39 +264,33 @@ it is possible to detect if an object is a presence.
 ### Handler traps
 
 A handler object can provide handler traps (`eventualGet`, `eventualApply`,
-`eventualSend`) and their associated `*Only` traps.
+`eventualSend`).
 
 ```ts
 ({
-  eventualGet        (target, prop):        Promise<result>,
-  eventualGetOnly    (target, prop):        void,
-  eventualApply      (target, args):        Promise<result>,
-  eventualApplyOnly  (target, args):        void,
-  eventualSend       (target, prop, args):  Promise<result>,
-  eventualSendOnly   (target, prop, args):  void,
+  eventualGet        (target, prop, opts):        Promise<result>,
+  eventualApply      (target, args, opts):        Promise<result>,
+  eventualSend       (target, prop, args, opts):  Promise<result>,
 })
 ```
 
-If the handler does not provide a `*Only` trap, its default implementation
-is the non-send-only trap with a return value of `undefined` (not a promise).
-
-If the handler omits a non-only trap, invoking the associated operation
-returns a promise rejection.  The only exception to that behaviour is if the
-handler does not provide the `eventualSend` optimization trap.  Then, its
-default implementation is
+If the handler omits a trap, invoking the associated operation returns a promise
+rejection.  The only exception to that behaviour is if the handler does not
+provide the `eventualSend` optimization trap.  Then, its default implementation
+is
 ```js
-Promise.eventualApply(Promise.eventualGet(p, prop), args)
+Promise.delegated.eventualApply(Promise.delegated.eventualGet(p, prop), args, opts)
 ```
 
 This expansion requires that the promise for the remote method be unnecessarily
 reified.
 
-For an unfulfilled handler, the trap's `target` argument is the unfulfilled
-delegated promise, so that it can gain control before the promise is resolved.
+For a pending handler, the trap's `target` argument is the unsettled delegated
+promise, so that the handler can gain control before the promise is resolved.
 For a presence handler, the trap's `target` argument is the presence that was
 created by `resolveWithPresence`.
 
-### New `Promise` static methods
+### `Promise.delegated` static methods
 
 The methods in this section are used to implement higher-level communication
 primitives, such as the `E` proxy maker.
@@ -343,52 +301,47 @@ is necessary in order to allow pipelining of messages before the exact
 destination is known (i.e. before the delegated promise is resolved).
 
 ```js
-Promise.eventualGet(target, prop); // Promise<result>
-Promise.eventualGetOnly(target, prop); // undefined
-```
-
-```js
-Promise.eventualApply(target, [...args]); // Promise<result>
-Promise.eventualApplyOnly(target, [...args]); // undefined
+Promise.delegated.eventualGet(target, prop, opts = {}); // Promise<result>
+Promise.delegated.eventualApply(target, [...args], opts = {}); // Promise<result>
 ```
 
 The `eventualSend` call combines property lookup with function application in
-order to distinguish them from an `eventualGet` whose value is separately inspected, and
-for the handler to be able to bundle the two operations as a single message.
+order to distinguish them from an `eventualGet` whose value is separately
+inspected, and for the handler to be able to bundle the two operations as a
+single message.
 
 ```js
-Promise.eventualSend(target, prop, args); // Promise<result>
-Promise.eventualSendOnly(target, prop, args); // undefined
+Promise.delegated.eventualSend(target, prop, args, opts = {}); // Promise<result>
 ```
 
 ## Platform Support
 
-All the above behavior, as described so far, is implemented in the [Eventual
-Send Shim](https://github.com/Agoric/eventual-send) (TODO update to proposed
-API).  However, there is one critical behavior that we specify, that can easily
-be provided by a conforming platform, but is infeasible to emulate on top of
+All the above behavior, as described so far, will be implemented in the [Eventual
+Send Shim](https://github.com/Agoric/agoric-sdk/tree/master/packages/eventual-send).
+However, there is one critical behavior that we specify, that can easily be
+provided by a conforming platform, but is infeasible to emulate on top of
 current platform promises.  Without it, many cases that should pipeline do not,
 disrupting desired ordering guarantees. Consider:
 
 ```js
-let pr;
-const p = new Promise(r => pr = r);
+let pResolve;
+const p = new Promise(r => pResolve = r);
 E(p).foo();
-let qr;
-const q = Promise.delegate(r => qr = r,
-                           unfulfilledHandler);
-pr.resolve(q);
+let qResolve;
+const q = new Promise.delegated(r => qResolve = r, qPendingHandler);
+pResolve(q);
 ```
 
 After `p` is resolved to `q`, the delayed `foo` invocation should be forwarded
-to `q` and trap to `q`'s `unfulfilledHandler`.  Although a shim could monkey
-patch the `Promise` constructor to provide an altered `resolve` function which
-does that, there are plenty of internal resolution steps that would bypass it.
-There is no way for a shim to detect that unfulfilled undelegated promise `p` has
-been resolved to unfulfilled delegated `q` by one of these.  Instead, the `foo`
+to `q` and trap to `q`'s `qPendingHandler`.  Although a shim could monkey patch
+the `Promise` constructor to provide an altered `resolve` function which does
+that, there are plenty of internal resolution steps that would bypass it.  There
+is no way for a shim to detect that unsettled undelegated promise `p` has been
+resolved to unsettled delegated `q` by one of these.  Instead, the `foo`
 invocation will languish until a round trip fulfills `q`, thus
-   * losing the benefits of promise pipelining,
-   * arriving after messages that should have arrived after it.
+   * losing the benefits of promise pipelining, and
+   * potentially arriving after other messages when it really should have
+     arrived before them.
 
 ## Syntactic Support
 
@@ -400,13 +353,13 @@ the wavy dot syntax.
 ## Completing the Proxy Analogy
 
    * ***internal methods*** that all promises must support
-      * [[EventualGet]], [[EventualGetOnly]],
-      * [[EventualApply]], [[EventualApplyOnly]],
-      * [[EventualSend]], [[EventualSendOnly]]
-   * ***static methods*** on `Promise` for invoking these internal methods.
-      * `Promise.eventualGet`, `Promise.eventualGetOnly`,
-      * `Promise.eventualApply`, `Promise.eventualApplyOnly`,
-      * `Promise.eventualSend`, `Promise.eventualSendOnly`
+      * [[EventualGet]],
+      * [[EventualApply]],
+      * [[EventualSend]]
+   * ***static methods*** on `Promise.delegated` for invoking these internal methods.
+      * `Promise.delegated.eventualGet`,
+      * `Promise.delegated.eventualApply`,
+      * `Promise.delegated.eventualSend`,
    * ***invariants*** that these methods must uphold.
       * Safety from reentrancy.
       * `p === Promise.resolve(t)` vs `p.then(t => ...)`
@@ -421,6 +374,5 @@ the wavy dot syntax.
    * ***promise invariant enforcement***.
       * The `p.then` pattern above
    * ***fallback behaviors*** for absent traps, implemented in terms of the remaining traps.
-      * `*Only(...)` defaults to `void *(...)`
       * `h.eventualSend(t, 'foo', [x])` defaults to
         `h.eventualApply(t, h.eventualGet(t, 'foo'), [x])`
