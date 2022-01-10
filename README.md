@@ -227,13 +227,11 @@ const delegatedExecutor = async (resolve, reject, resolveWithPresence) => {
   // Do something that may need a delay to complete.
   const { err, presenceHandler, other } = await determineResolution();
   if (presenceHandler) {
-    // presence is marked as an identity whose handler
+    // presence is a freshly-created Object.create(null) whose handler
     // is presenceHandler.  The targetP below will be resolved to this
     // presence.
-    const presence = {
-      toString: () => 'My Special Presence',
-    };
-    resolveWithPresence(presenceHandler);
+    const presence = resolveWithPresence(presenceHandler);
+    presence.toString = () => 'My Special Presence';
   } else if (err) {
     // Reject targetP with err.
     reject(err);
