@@ -211,39 +211,35 @@ new Promise((resolve, reject) => {
 }) -> fresh undelegated promise
 
 
-Promise.delegated((resolve, reject, resolveWithPresence) => {
-  ...
-  resolve(resolution) -> void
-  reject(reason) -> void
-  resolveWithPresence(presenceHandler) -> fresh presence
-  ...
-}, unfulfilledHandler) -> fresh delegated promise
+Promise.delegated(promise, pendingHandler) -> fresh delegated promise
 ```
 
 For example,
 
 ```js
-const delegatedExecutor = async (resolve, reject, resolveWithPresence) => {
+const createPromise = async () => {
   // Do something that may need a delay to complete.
   const { err, presenceHandler, other } = await determineResolution();
   if (presenceHandler) {
-    // presence is a freshly-created Object.create(null) whose handler
+    // presence is marked as an identity whose handler
     // is presenceHandler.  The targetP below will be resolved to this
     // presence.
-    const presence = resolveWithPresence(presenceHandler);
-    presence.toString = () => 'My Special Presence';
+    const presence = {
+      toString: () => 'My Special Presence',
+    };
+    return Promise.delegated.resolveWithPresence(presence, presenceHandler);
   } else if (err) {
     // Reject targetP with err.
-    reject(err);
+    throw err;
   } else {
     // Resolve targetP to other, using other's handler if there is one.
-    resolve(other);
+    return other;
   }
 };
 
 // Create a delegated promise with an initial handler.
 // A pendingHandler could speculatively send traffic to remote hosts.
-const targetP = new Promise.delegated(delegatedExecutor, pendingHandler);
+const targetP = Promise.delegated(createPromise(), pendingHandler);
 E(E(targetP).remoteMethod(someArg, someArg2)).callOnResult(...otherArgs);
 ```
 
@@ -286,7 +282,7 @@ reified.
 For a pending handler, the trap's `target` argument is the unsettled delegated
 promise, so that the handler can gain control before the promise is resolved.
 For a presence handler, the trap's `target` argument is the presence that was
-created by `resolveWithPresence`.
+created by `Promise.delegated.resolveWithPresence`.
 
 ### `Promise.delegated` static methods
 
@@ -325,8 +321,7 @@ disrupting desired ordering guarantees. Consider:
 let pResolve;
 const p = new Promise(r => pResolve = r);
 E(p).foo();
-let qResolve;
-const q = new Promise.delegated(r => qResolve = r, qPendingHandler);
+const q = Promise.delegated(promise2, qPendingHandler);
 pResolve(q);
 ```
 
