@@ -151,9 +151,9 @@ or, for delegated promises, the behavior that calls the associated handler trap.
 
 | Static Method | Default Behavior | Handler trap |
 | --- | --- | --- |
-| `eventualGet(p, prop, opts)` | `p.then(t => t[prop])` | `h.eventualGet(t, prop, opts)` |
-| `eventualApply(p, args, opts)` | `p.then(t => t(...args))` | `h.eventualApply(t, args, opts)` |
-| `eventualSend(p, prop, args, opts)` | `p.then(t => t[prop](...args))` | `h.eventualSend(t, prop, args, opts)` |
+| `eventualGet(p, prop, opts)` | `p.then(t => t[prop])` | `h.eventualGet(t, prop, { opts })` |
+| `eventualApply(p, args, opts)` | `p.then(t => t(...args))` | `h.eventualApply(t, args, { opts })` |
+| `eventualSend(p, prop, args, opts)` | `p.then(t => t[prop](...args))` | `h.eventualSend(t, prop, args, { opts })` |
 
 To protect against reentrancy, the proxy internal method postpones the
 execution of the handler trap to a later turn, and immediately returns a
@@ -161,7 +161,7 @@ promise for what the trap will return.  For example, the [[EventualGet]] interna
 method of a delegated promise is effectively
 
 ```js
-p.then(t => h.eventualGet(t, prop, opts))
+p.then(t => h.eventualGet(t, prop, { opts }))
 ```
 
 ### `E` convenience proxy maker
@@ -191,7 +191,7 @@ const fileP = E(
 E(fileP).read().then(contents => {
   console.log('file contents', contents);
   // We don't use the result of this send.
-  E(fileP, { oneway: true }).append('fire-and-forget');
+  E(fileP, { _oneway: true }).append('fire-and-forget');
 });
 ```
 
@@ -266,9 +266,9 @@ A handler object can provide handler traps (`eventualGet`, `eventualApply`,
 
 ```ts
 ({
-  eventualGet        (target, prop, opts):        Promise<result>,
-  eventualApply      (target, args, opts):        Promise<result>,
-  eventualSend       (target, prop, args, opts):  Promise<result>,
+  eventualGet        (target, prop, modifiers):        Promise<result>,
+  eventualApply      (target, args, modifiers):        Promise<result>,
+  eventualSend       (target, prop, args, modifiers):  Promise<result>,
 })
 ```
 
@@ -311,6 +311,30 @@ single message.
 ```js
 Promise.delegated.eventualSend(target, prop, args, opts = {}); // Promise<result>
 ```
+
+### Opt-In/Opt-Out Modifiers
+
+The last argument of the handler trap is called `modifiers`, and it is
+constructed as follows:
+
+- Modifier properties that can be safely ignored (opt-in modifiers) must begin
+  with an underscore (`_`).
+- All other (required, non-underscore, opt-out) modifier properties must be
+  examined and if they are unrecognized by the promise's handler, must result in
+  a rejected promise.
+- Any caller-supplied `opts` (defaulting to an empty object `{}`), is made
+  available as `modifiers.opts`.  The same convention applies; `opts` that are
+  safe to ignore must begin with an underscore.
+- Other immediate properties of the `modifiers` are implementation-defined.
+- The `Promise.delegated` implementation should enforce that the required
+  modifiers are examined by the handler trap.  The implementation should reject
+  the result promise if any required `modifiers` or `modifiers.opts` property is
+  not read.
+
+These conventions help distinguish between modifiers that are optional
+optimization hints versus required changes to behaviour.  For example,
+`modifiers.opts._oneway` can be safely ignored, since it is not strictly
+necessary for correctness, but `modifiers.opts.after` cannot be ignored.
 
 ## Platform Support
 
