@@ -339,7 +339,7 @@ necessary for correctness, but `modifiers.opts.after` cannot be ignored.
 ## Platform Support
 
 All the above behavior, as described so far, will be implemented in the [Eventual
-Send Shim](https://github.com/Agoric/agoric-sdk/tree/master/packages/eventual-send).
+Send Shim](https://github.com/endojs/endo/blob/master/packages/eventual-send).
 However, there is one critical behavior that we specify, that can easily be
 provided by a conforming platform, but is infeasible to emulate on top of
 current platform promises.  Without it, many cases that should pipeline do not,
